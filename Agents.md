@@ -9,7 +9,110 @@ Follow these rules for any game development task:
 - **Install**: Run `bun install` in the game folder.
 - **Build**: Run `bun run build` **from within the game folder** (e.g., `cd seed-templates/police-chase && bun run build`). Do NOT run from root or frontend—those are separate builds.
 
-### 2. External Tools & APIs
+### 2. Multiplayer Games (Playroom Kit)
+
+If you are building a **multiplayer game**, use [Playroom Kit](https://docs.joinplayroom.com/) for real-time networking. Reference `draw-the-thing/` as a working example.
+
+#### Setup
+1. Install the Playroom Kit npm package:
+   ```bash
+   bun add playroomkit
+   ```
+2. Include the UMD script in your HTML (for non-bundled usage):
+   ```html
+   <script src="https://unpkg.com/playroomkit/multiplayer.full.umd.js" crossorigin="anonymous"></script>
+   ```
+
+#### Key Patterns (from `draw-the-thing`)
+
+**Connecting to a Room:**
+```typescript
+import { insertCoin, getRoomCode, myPlayer, onPlayerJoin, isHost, getState, setState } from "playroomkit";
+
+await insertCoin({
+  skipLobby: true,
+  maxPlayersPerRoom: 8,
+  roomCode: roomCode,  // e.g., "ABCD" or generated
+  defaultPlayerStates: {
+    score: 0,
+    guessed: false,
+  },
+});
+```
+
+**Broadcasting Room Code to Platform (CRITICAL):**
+The platform needs to know the room code so friends can join. Call `window.shareRoomCode()` after connecting:
+```typescript
+// Share room code with parent so friends can join
+function shareRoomCode(roomCode: string | null): void {
+  if (typeof (window as any).shareRoomCode === "function") {
+    (window as any).shareRoomCode(roomCode);
+  }
+}
+
+// After successful insertCoin:
+shareRoomCode(getRoomCode());
+
+// When leaving the room, clear it:
+shareRoomCode(null);
+```
+
+**Handling Player Join/Quit:**
+```typescript
+onPlayerJoin((player) => {
+  console.log("[GameManager] Player joined:", player.id);
+  players.push(player);
+
+  player.onQuit(() => {
+    console.log("[GameManager] Player left:", player.id);
+    players = players.filter((p) => p.id !== player.id);
+  });
+});
+```
+
+**State Synchronization:**
+```typescript
+// Room state (shared by all players)
+setState("currentWord", "apple", true);  // reliable=true
+const word = getState("currentWord");
+
+// Player state (per-player)
+myPlayer().setState("score", 10, true);
+const score = player.getState("score");
+```
+
+**Host-Only Logic:**
+```typescript
+if (isHost()) {
+  // Only the host manages game transitions
+  setState("gamePhase", "playing", true);
+}
+```
+
+#### Injected Window Variables
+The platform may inject these variables for auto-joining:
+```typescript
+declare global {
+  interface Window {
+    __ROOM_CODE__?: string;     // Pre-filled room code
+    __PLAYER_NAME__?: string;   // Player's display name
+    __PLAYER_AVATAR__?: string; // Player's avatar URL
+  }
+}
+
+// Check on init:
+if (window.__ROOM_CODE__) {
+  await connectToRoom(window.__ROOM_CODE__);
+}
+```
+
+See `draw-the-thing/src/main.ts` and `draw-the-thing/src/GameManager.ts` for complete implementation.
+
+> 📚 **For more in-depth Playroom Kit knowledge**, see [`playroom_js.md`](./playroom_js.md) which covers additional API functions like RPC calls, kicking players, and detailed state management examples.
+
+---
+
+### 3. External Tools & APIs
 - **Image Generation**: Use `tools/imageGenerator.ts` to generate 2D images via Replicate (`openai/gpt-image-1.5`). 
   - **Asset Creation**: Proactively use this tool to create all necessary game assets including textures, backgrounds, buttons, and UI elements.
   - **Prompting**: Instruct the model to create solid borders with a white background for sprites and objects.
@@ -29,13 +132,13 @@ Follow these rules for any game development task:
   - To upload a Buffer: `await utapi.uploadFiles([new File([buffer], 'filename.png')])`
   - Get URL from response: `response.data.url`
 
-### 3. Logic & Style
+### 4. Logic & Style
 - **TypeScript**: Use TypeScript for all logic. No JavaScript in `index.html`.
 - **CSS**: Place CSS in `<style>` tag in `index.html`.
 - **Logs**: Always use `console.log('[FunctionName]', message)`.
 - **Backticks**: Never use backticks inside template literals.
 
-### 3. Design & Polish
+### 5. Design & Polish
 - **Professionalism**: These games will be shown to thousands of people; they must look and feel professional.
 - **Aesthetics**: Make the games beautiful. Use high-quality visual assets, smooth animations, and polished UI.
 - **Start Screens**: Create stunning start screens that immediately engage players and establish the game's theme.
@@ -43,7 +146,7 @@ Follow these rules for any game development task:
 - **Settings Button (REQUIRED)**: Every game MUST include a settings button with toggles for Music, FX, and Haptics. See Technical Requirements for full details.
 
 
-### 4. Technical Requirements
+### 6. Technical Requirements
 
 - **No Emojis**: Use icons from a library instead of Emojis, they look unprofessional and inconsistent across platforms.
 
@@ -178,7 +281,7 @@ Follow these rules for any game development task:
     ```
 
 
-### 5. Performance & Code Quality
+### 7. Performance & Code Quality
 
 - **No Random Values in Render Loops (CRITICAL)**:
   - NEVER use `Math.random()` or `randomRange()` inside `draw*()` or `render()` functions
@@ -228,7 +331,7 @@ Follow these rules for any game development task:
 - **Meta Tags**:
   - Use `<meta name="mobile-web-app-capable" content="yes">` (NOT `apple-mobile-web-app-capable` which is deprecated)
 
-### 6. Handheld Console (Game Boy) UI Design
+### 8. Handheld Console (Game Boy) UI Design
 
 When creating games that use a physical handheld console (Game Boy) aesthetic, follow these precise sizing and positioning guidelines to ensure a professional feel and mobile ergonomics:
 

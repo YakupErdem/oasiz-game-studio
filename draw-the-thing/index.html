@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Draw The Thing</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Patrick+Hand&family=Nunito:wght@400;600;700;800&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            color: #F6F9FB;
+            font-family: 'Nunito', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ============= SKETCHY DECORATIONS ============= */
+        .sketch-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.06;
+            background-image: 
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M10 20 Q 15 10, 25 15 T 40 20' stroke='%23fff' fill='none' stroke-width='1.5'/%3E%3Ccircle cx='70' cy='30' r='8' stroke='%23fff' fill='none' stroke-width='1.5'/%3E%3Cpath d='M60 70 L 80 70 L 70 90 Z' stroke='%23fff' fill='none' stroke-width='1.5'/%3E%3Cpath d='M20 60 Q 30 55, 35 65 T 45 70' stroke='%23fff' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+        }
+
+        /* ============= SETTINGS BUTTON ============= */
+        #settings-btn {
+            position: fixed;
+            top: 45px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 110;
+            transition: all 0.2s ease;
+        }
+
+        #settings-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: rotate(15deg);
+        }
+
+        #settings-btn svg {
+            width: 22px;
+            height: 22px;
+            fill: #F6F9FB;
+        }
+
+        @media (pointer: coarse) {
+            #settings-btn {
+                top: 120px;
+            }
+        }
+
+        /* ============= BACK BUTTON ============= */
+        #back-btn {
+            position: fixed;
+            top: 45px;
+            left: 20px;
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 12px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 110;
+            transition: all 0.2s ease;
+        }
+
+        #back-btn:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateX(-3px);
+        }
+
+        #back-btn svg {
+            width: 22px;
+            height: 22px;
+            fill: #F6F9FB;
+        }
+
+        @media (pointer: coarse) {
+            #back-btn {
+                top: 120px;
+            }
+        }
+
+        /* ============= SETTINGS MODAL ============= */
+        #settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 46, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        #settings-modal.active {
+            display: flex;
+        }
+
+        .settings-content {
+            background: #16213e;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 320px;
+            border: 3px dashed rgba(255,255,255,0.2);
+            position: relative;
+        }
+
+        .settings-title {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.8rem;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 0;
+            border-bottom: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        .settings-row:last-of-type {
+            border-bottom: none;
+        }
+
+        .settings-label {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .settings-label svg {
+            width: 24px;
+            height: 24px;
+            fill: #FFD93D;
+        }
+
+        .toggle {
+            width: 50px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle.active {
+            background: #6BCB77;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 22px;
+            height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            transition: left 0.3s ease;
+        }
+
+        .toggle.active::after {
+            left: 25px;
+        }
+
+        .settings-close-btn {
+            width: 100%;
+            margin-top: 24px;
+            padding: 14px;
+            background: #FFD93D;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .settings-close-btn:hover {
+            transform: scale(1.02);
+        }
+
+        /* ============= GAME CONTAINER ============= */
+        #game-container {
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            padding: 45px 16px 16px 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        @media (pointer: coarse) {
+            #game-container {
+                padding-top: 120px;
+            }
+        }
+
+        /* ============= PLAYER BAR ============= */
+        #player-bar {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            padding: 10px 0;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+
+        .player-avatar {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 3px dashed transparent;
+            overflow: visible;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .player-avatar.drawing {
+            border-color: #FFD93D;
+            box-shadow: 0 0 20px rgba(255, 217, 61, 0.4);
+        }
+
+        .player-avatar img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .player-avatar .default-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B6B, #FFD93D);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-avatar .default-avatar svg {
+            width: 24px;
+            height: 24px;
+            fill: #fff;
+        }
+
+        .player-avatar .status-icon {
+            position: absolute;
+            right: -4px;
+            top: -4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .player-avatar .status-icon.pencil {
+            background: #FFD93D;
+        }
+
+        .player-avatar .status-icon.check {
+            background: #6BCB77;
+        }
+
+        .player-avatar .status-icon svg {
+            width: 12px;
+            height: 12px;
+            fill: #1a1a2e;
+        }
+
+        .player-score {
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #FF6B6B;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            font-family: 'Patrick Hand', cursive;
+        }
+
+        /* ============= HEADER / WORD DISPLAY ============= */
+        #header {
+            text-align: center;
+            padding: 12px;
+            flex-shrink: 0;
+        }
+
+        #header-title {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: rgba(246, 249, 251, 0.6);
+            margin-bottom: 6px;
+        }
+
+        #word-display {
+            font-family: 'Caveat', cursive;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 6px;
+            color: #FFD93D;
+        }
+
+        #timer {
+            display: inline-block;
+            background: #FF6B6B;
+            color: #fff;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.2rem;
+            margin-top: 8px;
+            min-width: 60px;
+        }
+
+        #timer.urgent {
+            background: #FF4757;
+            animation: wiggle 0.3s ease-in-out infinite;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(-2deg); }
+            50% { transform: rotate(2deg); }
+        }
+
+        /* ============= GAME LAYOUT - Guesser View (default) ============= */
+        /* Layout: Header -> Canvas -> Chat History -> Input */
+        
+        #game-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            gap: 8px;
+        }
+
+        #drawing-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            position: relative;
+            order: 1;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            min-height: 180px;
+            border: 4px solid #16213e;
+            box-shadow: 
+                8px 8px 0 rgba(0,0,0,0.2),
+                inset 0 0 0 2px rgba(0,0,0,0.05);
+        }
+
+        #drawing-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+
+        #viewer-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        /* Chat Area - appears after canvas for guessers */
+        #chat-area {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            order: 2;
+        }
+
+        #guesses-list {
+            flex-shrink: 0;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            min-height: 60px;
+            max-height: 120px;
+            border: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        #guess-input-container {
+            flex-shrink: 0;
+        }
+
+        /* ============= DRAWER VIEW ============= */
+        /* When drawing: Chat at TOP, Canvas + Controls at BOTTOM, no input */
+        #game-container.is-drawer #chat-area {
+            order: 0;
+            max-height: 100px;
+        }
+
+        #game-container.is-drawer #drawing-area {
+            order: 1;
+        }
+
+        #game-container.is-drawer #guess-input-container {
+            display: none;
+        }
+
+        #game-container.is-drawer #guesses-list {
+            max-height: 80px;
+        }
+
+        /* ============= DRAWING CONTROLS ============= */
+        #drawing-controls {
+            display: none;
+            gap: 8px;
+            padding: 10px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #drawing-controls.active {
+            display: flex;
+        }
+
+        .color-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+        }
+
+        .color-btn:hover {
+            transform: scale(1.15) rotate(5deg);
+        }
+
+        .color-btn.selected {
+            border-color: #FFD93D;
+            transform: scale(1.1);
+        }
+
+        .brush-size-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .brush-size-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .brush-size-btn.selected {
+            background: #FFD93D;
+            border-style: solid;
+            border-color: #FFD93D;
+        }
+
+        .brush-size-btn.selected .brush-dot {
+            background: #1a1a2e;
+        }
+
+        .brush-dot {
+            background: #F6F9FB;
+            border-radius: 50%;
+        }
+
+        #clear-btn {
+            padding: 10px 20px;
+            background: #FF6B6B;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+            margin-left: 8px;
+        }
+
+        #clear-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* ============= INPUT FOCUSED MODE (Mobile Keyboard) ============= */
+        /* Smooth transitions for all elements */
+        #game-container,
+        #game-content,
+        #chat-area,
+        #drawing-area,
+        #guess-input-container,
+        #player-bar,
+        #header,
+        #drawing-controls {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* When input is focused on mobile, completely rearrange for keyboard */
+        @media (pointer: coarse) {
+            #game-container.input-focused {
+                padding-top: 20px;
+                padding-bottom: 45vh; /* Leave space for keyboard */
+            }
+
+            /* Hide player bar, header, and drawing controls */
+            #game-container.input-focused #player-bar,
+            #game-container.input-focused #header,
+            #game-container.input-focused #drawing-controls {
+                opacity: 0;
+                pointer-events: none;
+                max-height: 0;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+            }
+
+            /* Move input to top */
+            #game-container.input-focused #game-content {
+                flex-direction: column-reverse;
+            }
+
+            #game-container.input-focused #chat-area {
+                order: -1;
+                margin-bottom: 0;
+            }
+
+            /* Chat history overlays the canvas */
+            #game-container.input-focused #guesses-list {
+                position: absolute;
+                top: 70px; /* Below input */
+                left: 16px;
+                right: 16px;
+                max-height: 120px;
+                z-index: 20;
+                background: rgba(26, 26, 46, 0.9);
+                backdrop-filter: blur(8px);
+                border: 2px solid rgba(255,255,255,0.2);
+                border-radius: 12px;
+            }
+
+            #game-container.input-focused #guess-input-container {
+                position: relative;
+                z-index: 25;
+            }
+
+            #game-container.input-focused #guess-input {
+                font-size: 18px;
+                padding: 16px 20px;
+                border-radius: 16px;
+                background: rgba(255,255,255,0.15);
+                border: 3px solid #FFD93D;
+                animation: inputPulse 0.3s ease;
+            }
+
+            @keyframes inputPulse {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.02); }
+                100% { transform: scale(1); }
+            }
+
+            /* Canvas takes remaining space but smaller */
+            #game-container.input-focused #drawing-area {
+                flex: 1;
+                max-height: 40vh;
+                margin-top: 8px;
+            }
+
+            #game-container.input-focused #canvas-container {
+                height: 100%;
+            }
+        }
+
+        .guess-item {
+            padding: 6px 12px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: 'Patrick Hand', cursive;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .guess-item.correct {
+            background: rgba(107, 203, 119, 0.2);
+            color: #6BCB77;
+        }
+
+        .guess-item .player-name {
+            font-weight: 700;
+            color: #FFD93D;
+        }
+
+        #guess-input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        #guess-input {
+            flex: 1;
+            padding: 12px 18px;
+            background: rgba(255,255,255,0.1);
+            border: 3px dashed rgba(255,255,255,0.2);
+            border-radius: 25px;
+            color: #F6F9FB;
+            font-size: 1rem;
+            font-family: 'Patrick Hand', cursive;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        #guess-input:focus {
+            border-color: #FFD93D;
+            border-style: solid;
+        }
+
+        #guess-input:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #guess-input::placeholder {
+            color: rgba(246, 249, 251, 0.4);
+        }
+
+        /* ============= START SCREEN ============= */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a2e;
+            z-index: 150;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        #start-screen.hidden {
+            display: none;
+        }
+
+        /* Sketchy decorations for start screen */
+        .doodle {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        .doodle-1 { top: 10%; left: 5%; font-size: 60px; transform: rotate(-15deg); }
+        .doodle-2 { top: 15%; right: 10%; font-size: 50px; transform: rotate(10deg); }
+        .doodle-3 { bottom: 20%; left: 8%; font-size: 45px; transform: rotate(-5deg); }
+        .doodle-4 { bottom: 15%; right: 5%; font-size: 55px; transform: rotate(20deg); }
+        .doodle-5 { top: 40%; left: 3%; font-size: 40px; transform: rotate(-25deg); }
+        .doodle-6 { top: 50%; right: 3%; font-size: 48px; transform: rotate(15deg); }
+
+        .start-content {
+            text-align: center;
+            max-width: 360px;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #FFD93D 0%, #FF6B6B 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 6px 6px 0 rgba(0,0,0,0.2);
+            transform: rotate(-3deg);
+            border: 3px solid #fff;
+        }
+
+        .logo-icon svg {
+            width: 45px;
+            height: 45px;
+            fill: #1a1a2e;
+        }
+
+        .game-title {
+            font-family: 'Caveat', cursive;
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: #FFD93D;
+            text-shadow: 3px 3px 0 #FF6B6B;
+        }
+
+        .game-subtitle {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            color: rgba(246, 249, 251, 0.7);
+            margin-bottom: 30px;
+        }
+
+        /* Buttons container */
+        .start-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FFD93D 0%, #FFC107 100%);
+            color: #1a1a2e;
+            border: none;
+            padding: 16px 0;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.4rem;
+            cursor: pointer;
+            border-radius: 50px;
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+            width: 100%;
+            max-width: 260px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 7px 7px 0 rgba(0,0,0,0.25);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #F6F9FB;
+            border: 3px dashed rgba(255,255,255,0.4);
+            padding: 14px 0;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.3rem;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.2s ease;
+            width: 100%;
+            max-width: 260px;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.6);
+        }
+
+        /* Join Room Section */
+        .join-room-section {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+            width: 100%;
+        }
+
+        .join-room-section.active {
+            display: flex;
+        }
+
+        #join-room-input {
+            width: 100%;
+            max-width: 200px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.1);
+            border: 3px dashed rgba(255,255,255,0.4);
+            border-radius: 16px;
+            color: #FFD93D;
+            font-family: 'Caveat', cursive;
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        #join-room-input:focus {
+            border-color: #FFD93D;
+            border-style: solid;
+            background: rgba(255, 217, 61, 0.1);
+        }
+
+        #join-room-input::placeholder {
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 2px;
+            font-size: 1.2rem;
+        }
+
+        .join-error {
+            color: #FF6B6B;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            display: none;
+        }
+
+        .join-error.active {
+            display: block;
+        }
+
+        .back-link {
+            color: rgba(255,255,255,0.5);
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .back-link:hover {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .back-link svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        /* How to Play */
+        .how-to-play {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 3px dashed rgba(255,255,255,0.15);
+        }
+
+        .how-to-play h3 {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 16px;
+        }
+
+        .instructions {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .instruction {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.05rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .instruction-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.15);
+        }
+
+        .instruction-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: currentColor;
+        }
+
+        .instruction-icon.draw { background: #4ECDC4; color: #1a1a2e; }
+        .instruction-icon.guess { background: #6BCB77; color: #1a1a2e; }
+        .instruction-icon.score { background: #FFD93D; color: #1a1a2e; }
+
+        /* ============= LOBBY SCREEN ============= */
+        #lobby-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a2e;
+            z-index: 100;
+            padding: 20px;
+            padding-top: 45px;
+        }
+
+        @media (pointer: coarse) {
+            #lobby-screen {
+                padding-top: 120px;
+            }
+        }
+
+        #lobby-screen.hidden {
+            display: none;
+        }
+
+        .lobby-content {
+            text-align: center;
+            max-width: 380px;
+            width: 100%;
+        }
+
+        .lobby-title {
+            font-family: 'Caveat', cursive;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #FFD93D;
+            margin-bottom: 20px;
+        }
+
+        /* Room Code Display */
+        .room-code-container {
+            background: rgba(255, 217, 61, 0.1);
+            border: 3px dashed #FFD93D;
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .room-code-label {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+        }
+
+        .room-code-value {
+            font-family: 'Caveat', cursive;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #FFD93D;
+            letter-spacing: 5px;
+        }
+
+        .copy-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.05);
+        }
+
+        .copy-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #F6F9FB;
+        }
+
+        /* Name Input */
+        .name-input-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        .name-input-label {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        #player-name-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 12px;
+            color: #F6F9FB;
+            font-size: 1.1rem;
+            font-family: 'Patrick Hand', cursive;
+            outline: none;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        #player-name-input:focus {
+            border-color: #FFD93D;
+            border-style: solid;
+        }
+
+        /* Players List */
+        .players-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 20px;
+            border: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        .players-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .players-title {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.7);
+        }
+
+        .players-count {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: #6BCB77;
+        }
+
+        #lobby-players-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            justify-content: center;
+            min-height: 70px;
+            align-items: center;
+        }
+
+        .lobby-player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            min-width: 70px;
+        }
+
+        .lobby-player-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6B6B, #FFD93D);
+            border: 3px dashed rgba(255,255,255,0.4);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.15);
+        }
+
+        .lobby-player-avatar.is-host {
+            border-color: #FFD93D;
+            border-style: solid;
+        }
+
+        .lobby-player-avatar.is-me {
+            border-color: #6BCB77;
+            border-style: solid;
+        }
+
+        .lobby-player-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .lobby-player-avatar svg {
+            width: 28px;
+            height: 28px;
+            fill: #1a1a2e;
+        }
+
+        .host-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 24px;
+            height: 24px;
+            background: #FFD93D;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+        }
+
+        .host-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: #1a1a2e;
+        }
+
+        .lobby-player-name {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Status Message */
+        .lobby-status {
+            padding: 14px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.6);
+            border: 2px dashed rgba(255,255,255,0.1);
+        }
+
+        .lobby-status.waiting {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .waiting-dots {
+            display: flex;
+            gap: 5px;
+        }
+
+        .waiting-dot {
+            width: 8px;
+            height: 8px;
+            background: #FFD93D;
+            border-radius: 50%;
+            animation: dotBounce 1.4s ease-in-out infinite;
+        }
+
+        .waiting-dot:nth-child(1) { animation-delay: 0s; }
+        .waiting-dot:nth-child(2) { animation-delay: 0.2s; }
+        .waiting-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dotBounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ============= ROUND END OVERLAY ============= */
+        #round-end-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(26, 26, 46, 0.98);
+            z-index: 80;
+        }
+
+        #round-end-overlay.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .round-end-content {
+            text-align: center;
+            padding: 40px;
+            max-width: 400px;
+        }
+
+        .round-end-title {
+            font-family: 'Caveat', cursive;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #FF6B6B;
+            margin-bottom: 10px;
+        }
+
+        .round-end-title.winner {
+            color: #6BCB77;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .word-reveal {
+            font-family: 'Caveat', cursive;
+            font-size: 3rem;
+            font-weight: 700;
+            color: #FFD93D;
+            margin: 20px 0;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+        }
+
+        .winner-section {
+            background: rgba(107, 203, 119, 0.15);
+            border: 3px dashed #6BCB77;
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .winner-label {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 12px;
+        }
+
+        .winner-players {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .winner-player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .winner-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6BCB77, #4ECDC4);
+            border: 3px solid #FFD93D;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(107, 203, 119, 0.5);
+            animation: pulse 1s ease infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(107, 203, 119, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(107, 203, 119, 0.8); }
+        }
+
+        .winner-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .winner-avatar svg {
+            width: 28px;
+            height: 28px;
+            fill: #1a1a2e;
+        }
+
+        .winner-name {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: #6BCB77;
+            font-weight: 600;
+        }
+
+        .winner-score {
+            font-family: 'Caveat', cursive;
+            font-size: 1.2rem;
+            color: #FFD93D;
+        }
+
+        .next-round-text {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 20px;
+        }
+
+        .no-winners {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.6);
+            padding: 20px;
+        }
+
+        /* ============= LOADING STATE ============= */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            gap: 16px;
+        }
+
+        #loading-screen.hidden {
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px dashed rgba(255, 217, 61, 0.3);
+            border-top-color: #FFD93D;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            font-family: 'Patrick Hand', cursive;
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.6);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ============= MOBILE ADJUSTMENTS ============= */
+        @media (pointer: coarse) {
+            .game-title {
+                font-size: 2.5rem;
+            }
+            .btn-primary {
+                padding: 14px 0;
+                font-size: 1.3rem;
+            }
+            #word-display {
+                font-size: 2rem;
+            }
+            .color-btn, .brush-size-btn {
+                width: 40px;
+                height: 40px;
+            }
+            .lobby-player-avatar {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
+        @media (max-height: 650px) {
+            .logo-icon {
+                width: 60px;
+                height: 60px;
+            }
+            .logo-icon svg {
+                width: 32px;
+                height: 32px;
+            }
+            .game-title {
+                font-size: 2.2rem;
+            }
+            .how-to-play {
+                padding: 14px;
+                margin-top: 20px;
+            }
+            .instruction {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sketchy background -->
+    <div class="sketch-bg"></div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="hidden">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Connecting...</div>
+    </div>
+
+    <!-- Start Screen (Create/Join) -->
+    <div id="start-screen">
+        <!-- Decorative doodles -->
+        <svg class="doodle doodle-1" width="60" height="60" viewBox="0 0 60 60" fill="none"><path d="M10 50 L30 10 L50 50 Z" stroke="#FFD93D" stroke-width="3" fill="none"/></svg>
+        <svg class="doodle doodle-2" width="50" height="50" viewBox="0 0 50 50" fill="none"><circle cx="25" cy="25" r="20" stroke="#FF6B6B" stroke-width="3" fill="none"/></svg>
+        <svg class="doodle doodle-3" width="45" height="45" viewBox="0 0 45 45" fill="none"><rect x="5" y="5" width="35" height="35" stroke="#6BCB77" stroke-width="3" fill="none" rx="5"/></svg>
+        <svg class="doodle doodle-4" width="55" height="55" viewBox="0 0 55 55" fill="none"><path d="M27.5 5 L35 20 L50 22 L40 32 L42 47 L27.5 40 L13 47 L15 32 L5 22 L20 20 Z" stroke="#4ECDC4" stroke-width="3" fill="none"/></svg>
+        <svg class="doodle doodle-5" width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M5 20 Q20 5, 35 20 Q20 35, 5 20" stroke="#FF6B6B" stroke-width="3" fill="none"/></svg>
+        <svg class="doodle doodle-6" width="48" height="48" viewBox="0 0 48 48" fill="none"><path d="M24 4 L28 18 L42 18 L30 27 L34 42 L24 33 L14 42 L18 27 L6 18 L20 18 Z" stroke="#FFD93D" stroke-width="2" fill="none"/></svg>
+
+        <div class="start-content">
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </div>
+            </div>
+            <h1 class="game-title">Draw The Thing!</h1>
+            <p class="game-subtitle">Draw, guess & have fun with friends</p>
+
+            <!-- Main Buttons -->
+            <div class="start-buttons" id="start-buttons">
+                <button class="btn-primary" id="create-room-btn">CREATE ROOM</button>
+                <button class="btn-secondary" id="join-room-btn">JOIN ROOM</button>
+            </div>
+
+            <!-- Join Room Section (hidden by default) -->
+            <div class="join-room-section" id="join-room-section">
+                <input type="text" id="join-room-input" placeholder="CODE" maxlength="6" autocomplete="off" autocapitalize="characters">
+                <div class="join-error" id="join-error">Invalid room code</div>
+                <button class="btn-primary" id="join-submit-btn">JOIN</button>
+                <div class="back-link" id="back-to-start">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                    Back
+                </div>
+            </div>
+
+            <div class="how-to-play">
+                <h3>HOW TO PLAY</h3>
+                <div class="instructions">
+                    <div class="instruction">
+                        <div class="instruction-icon draw">
+                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </div>
+                        <span>Take turns drawing a word</span>
+                    </div>
+                    <div class="instruction">
+                        <div class="instruction-icon guess">
+                            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                        </div>
+                        <span>Guess what others draw</span>
+                    </div>
+                    <div class="instruction">
+                        <div class="instruction-icon score">
+                            <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7-6.3-4.6-6.3 4.6 2.3-7-6-4.6h7.6z"/></svg>
+                        </div>
+                        <span>Score points for correct guesses</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button (for lobby) -->
+    <button id="back-btn">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+    </button>
+
+    <!-- Settings Button -->
+    <button id="settings-btn" style="display: none;">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </button>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div class="settings-content">
+            <div class="settings-title">Settings</div>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                    Sound FX
+                </div>
+                <div class="toggle active" id="toggle-fx"></div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                    Music
+                </div>
+                <div class="toggle active" id="toggle-music"></div>
+            </div>
+            <div class="settings-row">
+                <div class="settings-label">
+                    <svg viewBox="0 0 24 24"><path d="M0 15.998l.001-3.999.002-.017v-.02h-.002L0 11.98l.003-.015A.89.89 0 010 11.962V7.997c0-.553.45-1 .998-1h7.004c.553 0 1 .447 1 1v8c0 .553-.447 1-1 1H.998c-.552 0-.998-.447-.998-1zm2-6.999v5h5v-5H2zm16.5 8.5c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm2.5-1.5c0 1.381-1.119 2.5-2.5 2.5s-2.5-1.119-2.5-2.5 1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5zm-5-8c.828 0 1.5-.672 1.5-1.5S16.828 5 16 5s-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm2.5-1.5c0 1.381-1.119 2.5-2.5 2.5s-2.5-1.119-2.5-2.5S14.619 4 16 4s2.5 1.119 2.5 2.5zM13 15l6-9"/></svg>
+                    Haptics
+                </div>
+                <div class="toggle active" id="toggle-haptics"></div>
+            </div>
+            <button class="settings-close-btn" id="settings-close">Done</button>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="hidden">
+        <div class="lobby-content">
+            <h1 class="lobby-title">Waiting for Players...</h1>
+
+            <!-- Room Code -->
+            <div class="room-code-container">
+                <div>
+                    <div class="room-code-label">Room Code</div>
+                    <div class="room-code-value" id="room-code-display">----</div>
+                </div>
+                <button class="copy-btn" id="copy-code-btn" title="Copy room code">
+                    <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+            </div>
+
+            <!-- Name Input -->
+            <div class="name-input-container">
+                <div class="name-input-label">Your Name</div>
+                <input type="text" id="player-name-input" placeholder="Enter your name..." maxlength="20" autocomplete="off">
+            </div>
+
+            <!-- Players List -->
+            <div class="players-section">
+                <div class="players-header">
+                    <div class="players-title">Players in Lobby</div>
+                    <div class="players-count" id="player-count">0/8</div>
+                </div>
+                <div id="lobby-players-list">
+                    <!-- Players will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <div class="lobby-status waiting" id="lobby-status">
+                <span>Waiting for host to start</span>
+                <div class="waiting-dots">
+                    <div class="waiting-dot"></div>
+                    <div class="waiting-dot"></div>
+                    <div class="waiting-dot"></div>
+                </div>
+            </div>
+
+            <!-- Start Button (only visible for host) -->
+            <button class="btn-primary" id="start-game-btn" style="display: none;">START GAME</button>
+        </div>
+    </div>
+
+    <!-- Round End Overlay -->
+    <div id="round-end-overlay">
+        <div class="round-end-content">
+            <h1 class="round-end-title" id="round-end-title">TIME'S UP!</h1>
+            <p class="game-subtitle">The word was:</p>
+            <div class="word-reveal" id="revealed-word"></div>
+            <div class="winner-section" id="winner-section">
+                <div class="winner-label">Correct Guessers</div>
+                <div class="winner-players" id="winner-players">
+                    <!-- Winners will be rendered here -->
+                </div>
+            </div>
+            <p class="next-round-text">Next round starting soon...</p>
+        </div>
+    </div>
+
+    <!-- Main Game Container -->
+    <div id="game-container">
+        <!-- Player Bar -->
+        <div id="player-bar"></div>
+
+        <!-- Header -->
+        <div id="header">
+            <div id="header-title">Guess the word!</div>
+            <div id="word-display">_ _ _ _ _</div>
+            <div id="timer">60</div>
+        </div>
+
+        <!-- Game Content (flex container for reordering) -->
+        <div id="game-content">
+            <!-- Drawing Area -->
+            <div id="drawing-area">
+                <div id="canvas-container">
+                    <canvas id="drawing-canvas"></canvas>
+                    <img id="viewer-image" alt="drawing">
+                </div>
+                <div id="drawing-controls">
+                    <button class="color-btn selected" data-color="#000000" style="background: #000000;"></button>
+                    <button class="color-btn" data-color="#ef4444" style="background: #ef4444;"></button>
+                    <button class="color-btn" data-color="#f97316" style="background: #f97316;"></button>
+                    <button class="color-btn" data-color="#eab308" style="background: #eab308;"></button>
+                    <button class="color-btn" data-color="#22c55e" style="background: #22c55e;"></button>
+                    <button class="color-btn" data-color="#00A1E4" style="background: #00A1E4;"></button>
+                    <button class="color-btn" data-color="#8b5cf6" style="background: #8b5cf6;"></button>
+                    <button class="color-btn" data-color="#ffffff" style="background: #ffffff; border: 2px solid #ccc;"></button>
+                    <button class="brush-size-btn selected" data-size="5">
+                        <div class="brush-dot" style="width: 6px; height: 6px;"></div>
+                    </button>
+                    <button class="brush-size-btn" data-size="12">
+                        <div class="brush-dot" style="width: 10px; height: 10px;"></div>
+                    </button>
+                    <button class="brush-size-btn" data-size="20">
+                        <div class="brush-dot" style="width: 14px; height: 14px;"></div>
+                    </button>
+                    <button id="clear-btn">Clear</button>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div id="chat-area">
+                <div id="guesses-list"></div>
+                <div id="guess-input-container">
+                    <input type="text" id="guess-input" placeholder="Type your guess..." autocomplete="off">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile input focus handling -->
+    <script>
+        (function() {
+            const gameContainer = document.getElementById('game-container');
+            const guessInput = document.getElementById('guess-input');
+            const guessInputContainer = document.getElementById('guess-input-container');
+            const isMobile = window.matchMedia('(pointer: coarse)').matches;
+            
+            // On focus: rearrange layout for keyboard (mobile only)
+            guessInput.addEventListener('focus', () => {
+                if (isMobile) {
+                    gameContainer.classList.add('input-focused');
+                    
+                    // Scroll to top to ensure input is visible
+                    setTimeout(() => {
+                        window.scrollTo(0, 0);
+                        document.body.scrollTop = 0;
+                        document.documentElement.scrollTop = 0;
+                    }, 100);
+                }
+            });
+            
+            // On blur: restore normal layout with animation
+            guessInput.addEventListener('blur', () => {
+                gameContainer.classList.remove('input-focused');
+            });
+            
+            // Only add click-to-blur on mobile
+            if (isMobile) {
+                // Click anywhere else to blur input - use a slight delay to not interfere with initial focus
+                document.addEventListener('touchend', (e) => {
+                    // Only blur if input is actually focused
+                    if (document.activeElement !== guessInput) return;
+                    
+                    // If clicking outside the input container, blur the input
+                    if (!guessInputContainer.contains(e.target)) {
+                        // Small delay to let the touch complete
+                        setTimeout(() => {
+                            if (document.activeElement === guessInput && 
+                                !guessInputContainer.contains(document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY))) {
+                                guessInput.blur();
+                            }
+                        }, 50);
+                    }
+                }, { passive: true });
+                
+                // Prevent page scroll when keyboard opens
+                document.addEventListener('touchmove', (e) => {
+                    if (gameContainer.classList.contains('input-focused')) {
+                        // Allow scrolling only within the guesses list
+                        const guessesList = document.getElementById('guesses-list');
+                        if (!guessesList.contains(e.target)) {
+                            e.preventDefault();
+                        }
+                    }
+                }, { passive: false });
+            }
+        })();
+    </script>
+
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

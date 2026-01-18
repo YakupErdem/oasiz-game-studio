@@ -27,15 +27,26 @@ Welcome to the Oasiz Game Studio! This guide will help you create high-quality g
 
 ## Getting Started
 
-### Choose a Game from the Backlog
+### Step 1: Fork the Repository
 
-Check out the **[Game Backlog](./BACKLOG.md)** for a list of games you can build. Pick one that interests you and confirm with the Oasiz team before starting to avoid overlap with other developers.
+Start by forking this repository to your own GitHub account:
 
-### Two Paths to Create a Game
+1. Click the **Fork** button at the top right of this repository
+2. Clone your forked repository locally:
+   ```bash
+   git clone https://github.com/YOUR-USERNAME/oasiz-game-studio.git
+   cd oasiz-game-studio
+   ```
+
+### Step 2: Choose a Game from the Backlog
+
+Check out the **[Game Backlog](./BACKLOG.md)** for a list of popular mobile games you can build. Pick one that interests you and **confirm with the Oasiz team before starting** to avoid overlap with other developers.
+
+### Step 3: Create Your Game
 
 You have two paths to create a game:
 
-### Option 1: Start from Scratch
+#### Option A: Start from Scratch
 
 Use this approach when building something entirely new.
 
@@ -58,7 +69,7 @@ bun run dev
 bun run build
 ```
 
-### Option 2: Fork an Existing Game
+#### Option B: Fork an Existing Game
 
 Use this approach when you want to iterate on a proven design or learn from existing code.
 
@@ -84,6 +95,25 @@ bun run build
 - `paddle-bounce` - Classic arcade mechanics
 - `threes` - Puzzle game patterns
 - `police-chase` - Endless runner style
+
+### Step 4: Submit a Pull Request
+
+When your game is complete and tested:
+
+1. **Commit your changes** to your forked repository:
+   ```bash
+   git add .
+   git commit -m "Add [your-game-name] game"
+   git push origin main
+   ```
+
+2. **Create a Pull Request** back to the main Oasiz repository:
+   - Go to your forked repository on GitHub
+   - Click **"Contribute"** → **"Open pull request"**
+   - Add a description of your game and any notes for reviewers
+   - Submit the PR for review
+
+3. **Wait for review** — the Oasiz team will review your game and provide feedback or merge it into the main repository
 
 ---
 
@@ -179,6 +209,45 @@ if (typeof (window as any).triggerHaptic === "function") {
 | `heavy` | Explosions, major collisions |
 | `success` | Level complete, achievements |
 | `error` | Damage, game over |
+
+### Multiplayer Games
+
+If you're building a **multiplayer game**, use [Playroom Kit](https://docs.joinplayroom.com/) for real-time networking. See `draw-the-thing/` as a complete working example.
+
+```bash
+# Install Playroom Kit
+bun add playroomkit
+```
+
+**Key requirements for multiplayer games:**
+
+1. **Broadcast Room Code** — Call `window.shareRoomCode(roomCode)` after connecting so friends can join:
+   ```typescript
+   import { insertCoin, getRoomCode } from "playroomkit";
+   
+   await insertCoin({ skipLobby: true, roomCode: "ABCD" });
+   
+   // Broadcast to platform
+   if (typeof (window as any).shareRoomCode === "function") {
+     (window as any).shareRoomCode(getRoomCode());
+   }
+   ```
+
+2. **Handle Injected Room Codes** — The platform may auto-inject a room code:
+   ```typescript
+   if (window.__ROOM_CODE__) {
+     await connectToRoom(window.__ROOM_CODE__);
+   }
+   ```
+
+3. **Clear Room Code on Leave** — When players leave, clear the shared code:
+   ```typescript
+   (window as any).shareRoomCode(null);
+   ```
+
+For detailed patterns (player state, host logic, RPC calls), see `Agents.md` and the `draw-the-thing/` source code.
+
+> 📚 **For more in-depth Playroom Kit knowledge**, see [`playroom_js.md`](./playroom_js.md).
 
 ---
 
