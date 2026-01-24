@@ -213,7 +213,7 @@ class PerfectDropGame {
     const saved = localStorage.getItem("perfectDropGameData");
     if (saved) {
       const data = JSON.parse(saved);
-      this.highScore = data.highScore || 0;
+      // High score is not loaded from local storage as per platform rules
       this.totalDrops = data.totalDrops || 0;
       this.perfectHits = data.perfectHits || 0;
       this.coins = data.coins || 0;
@@ -225,7 +225,7 @@ class PerfectDropGame {
 
   private saveGameData(): void {
     const data = {
-      highScore: this.highScore,
+      // highScore: this.highScore, // Do not save high score locally
       totalDrops: this.totalDrops,
       perfectHits: this.perfectHits,
       coins: this.coins,
@@ -279,26 +279,26 @@ class PerfectDropGame {
 
   private initAchievements(): void {
     this.achievements = [
-      { id: "first_drop", name: "First Drop", description: "Complete your first drop", unlocked: false, icon: "🎯", reward: 10 },
-      { id: "perfect_10", name: "Perfectionist", description: "Land 10 perfect hits", unlocked: false, icon: "⭐", reward: 50 },
-      { id: "perfect_50", name: "Master", description: "Land 50 perfect hits", unlocked: false, icon: "🌟", reward: 100 },
-      { id: "perfect_100", name: "Grandmaster", description: "Land 100 perfect hits", unlocked: false, icon: "💫", reward: 200 },
-      { id: "combo_5", name: "Combo Master", description: "Reach a 5x combo", unlocked: false, icon: "🔥", reward: 50 },
-      { id: "combo_10", name: "Combo King", description: "Reach a 10x combo", unlocked: false, icon: "👑", reward: 150 },
-      { id: "combo_20", name: "Combo God", description: "Reach a 20x combo", unlocked: false, icon: "⚡", reward: 300 },
-      { id: "score_500", name: "High Scorer", description: "Score 500 points", unlocked: false, icon: "🏆", reward: 50 },
-      { id: "score_1000", name: "Legend", description: "Score 1000 points", unlocked: false, icon: "💎", reward: 100 },
-      { id: "score_2500", name: "Unstoppable", description: "Score 2500 points", unlocked: false, icon: "🚀", reward: 250 },
-      { id: "score_5000", name: "Immortal", description: "Score 5000 points", unlocked: false, icon: "🌠", reward: 500 },
-      { id: "drops_50", name: "Dedicated", description: "Complete 50 drops", unlocked: false, icon: "💪", reward: 50 },
-      { id: "drops_100", name: "Committed", description: "Complete 100 drops", unlocked: false, icon: "🎖️", reward: 100 },
-      { id: "drops_500", name: "Veteran", description: "Complete 500 drops", unlocked: false, icon: "🏅", reward: 250 },
-      { id: "powerup_10", name: "Power Player", description: "Collect 10 power-ups", unlocked: false, icon: "⚡", reward: 50 },
-      { id: "powerup_50", name: "Power Master", description: "Collect 50 power-ups", unlocked: false, icon: "🔋", reward: 150 },
-      { id: "no_miss_10", name: "Flawless", description: "Land 10 in a row", unlocked: false, icon: "✨", reward: 100 },
-      { id: "no_miss_25", name: "Perfect Run", description: "Land 25 in a row", unlocked: false, icon: "🌈", reward: 250 },
-      { id: "rich", name: "Wealthy", description: "Earn 1000 coins", unlocked: false, icon: "💰", reward: 100 },
-      { id: "millionaire", name: "Millionaire", description: "Earn 10000 total score", unlocked: false, icon: "💸", reward: 500 }
+      { id: "first_drop", name: "First Drop", description: "Complete your first drop", unlocked: false, icon: "TARGET", reward: 10 },
+      { id: "perfect_10", name: "Perfectionist", description: "Land 10 perfect hits", unlocked: false, icon: "STAR", reward: 50 },
+      { id: "perfect_50", name: "Master", description: "Land 50 perfect hits", unlocked: false, icon: "STAR_FILLED", reward: 100 },
+      { id: "perfect_100", name: "Grandmaster", description: "Land 100 perfect hits", unlocked: false, icon: "CROWN", reward: 200 },
+      { id: "combo_5", name: "Combo Master", description: "Reach a 5x combo", unlocked: false, icon: "FLAME", reward: 50 },
+      { id: "combo_10", name: "Combo King", description: "Reach a 10x combo", unlocked: false, icon: "CROWN", reward: 150 },
+      { id: "combo_20", name: "Combo God", description: "Reach a 20x combo", unlocked: false, icon: "LIGHTNING", reward: 300 },
+      { id: "score_500", name: "High Scorer", description: "Score 500 points", unlocked: false, icon: "TROPHY", reward: 50 },
+      { id: "score_1000", name: "Legend", description: "Score 1000 points", unlocked: false, icon: "DIAMOND", reward: 100 },
+      { id: "score_2500", name: "Unstoppable", description: "Score 2500 points", unlocked: false, icon: "ROCKET", reward: 250 },
+      { id: "score_5000", name: "Immortal", description: "Score 5000 points", unlocked: false, icon: "STAR", reward: 500 },
+      { id: "drops_50", name: "Dedicated", description: "Complete 50 drops", unlocked: false, icon: "MUSCLE", reward: 50 },
+      { id: "drops_100", name: "Committed", description: "Complete 100 drops", unlocked: false, icon: "MEDAL", reward: 100 },
+      { id: "drops_500", name: "Veteran", description: "Complete 500 drops", unlocked: false, icon: "MEDAL_GOLD", reward: 250 },
+      { id: "powerup_10", name: "Power Player", description: "Collect 10 power-ups", unlocked: false, icon: "LIGHTNING", reward: 50 },
+      { id: "powerup_50", name: "Power Master", description: "Collect 50 power-ups", unlocked: false, icon: "BATTERY", reward: 150 },
+      { id: "no_miss_10", name: "Flawless", description: "Land 10 in a row", unlocked: false, icon: "SPARKLE", reward: 100 },
+      { id: "no_miss_25", name: "Perfect Run", description: "Land 25 in a row", unlocked: false, icon: "RAINBOW", reward: 250 },
+      { id: "rich", name: "Wealthy", description: "Earn 1000 coins", unlocked: false, icon: "COIN", reward: 100 },
+      { id: "millionaire", name: "Millionaire", description: "Earn 10000 total score", unlocked: false, icon: "CASH", reward: 500 }
     ];
 
     const saved = localStorage.getItem("perfectDropGameData");
@@ -446,6 +446,7 @@ class PerfectDropGame {
     const toggleMusic = document.getElementById("toggle-music");
     const toggleFx = document.getElementById("toggle-fx");
     const toggleHaptics = document.getElementById("toggle-haptics");
+    const homeBtn = document.getElementById("home-btn"); // New home button
 
     if (startBtn) {
       startBtn.addEventListener("click", () => {
@@ -510,6 +511,12 @@ class PerfectDropGame {
         this.playSound(440, 0.1);
       });
       toggleHaptics.classList.toggle("active", this.settings.haptics);
+    }
+
+    if (homeBtn) {
+      homeBtn.addEventListener("click", () => {
+        window.location.reload();
+      });
     }
   }
 
@@ -891,12 +898,12 @@ class PerfectDropGame {
 
   private getPowerUpSymbol(type: string): string {
     const symbols: Record<string, string> = {
-      slowmo: "⏱",
-      shield: "🛡",
-      double: "×2",
-      expand: "↔",
-      magnet: "🧲",
-      life: "❤"
+      slowmo: "SLOW",
+      shield: "PROT",
+      double: "2X",
+      expand: "WIDE",
+      magnet: "MAG",
+      life: "1UP"
     };
     return symbols[type] || "?";
   }
@@ -1089,8 +1096,9 @@ class PerfectDropGame {
   // ============================================================================
 
   private draw(): void {
-    const shakeX = this.shakeAmount > 0 ? (Math.random() - 0.5) * this.shakeAmount : 0;
-    const shakeY = this.shakeAmount > 0 ? (Math.random() - 0.5) * this.shakeAmount : 0;
+    const time = Date.now() / 50;
+    const shakeX = this.shakeAmount > 0 ? Math.sin(time * 14.5) * this.shakeAmount : 0;
+    const shakeY = this.shakeAmount > 0 ? Math.cos(time * 12.2) * this.shakeAmount : 0;
 
     this.ctx.save();
     this.ctx.translate(shakeX, shakeY);
@@ -1450,21 +1458,32 @@ class PerfectDropGame {
     this.ctx.fillText("Lives:", x, y);
 
     // Draw hearts
+    this.ctx.fillStyle = "#ff6b6b"; // Set fill style once
+
     for (let i = 0; i < this.maxLives; i++) {
-      const heartX = x + 55 + i * 30;
+      // Increased spacing: 20 (start) + ~70 (text width) + 15 (gap) + i * 30
+      const heartX = x + 90 + i * 30;
+      this.ctx.save();
+      this.ctx.translate(heartX, y - 5);
+
       if (i < this.lives) {
-        // Full heart
-        this.ctx.fillStyle = "#ff6b6b";
+        this.ctx.globalAlpha = 1;
         this.ctx.shadowColor = "#ff6b6b";
         this.ctx.shadowBlur = 10;
       } else {
-        // Empty heart
-        this.ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        this.ctx.globalAlpha = 0.3;
         this.ctx.shadowBlur = 0;
       }
 
-      this.ctx.font = "24px sans-serif";
-      this.ctx.fillText("❤", heartX, y + 2);
+      // Draw heart path
+      const size = 20;
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, size * 0.3);
+      this.ctx.bezierCurveTo(size * 0.3, -size * 0.3, size * 0.8, -size * 0.2, 0, size * 0.8);
+      this.ctx.bezierCurveTo(-size * 0.8, -size * 0.2, -size * 0.3, -size * 0.3, 0, size * 0.3);
+      this.ctx.fill();
+
+      this.ctx.restore();
     }
     this.ctx.shadowBlur = 0;
   }
@@ -1499,7 +1518,7 @@ class PerfectDropGame {
     this.ctx.shadowBlur = 0;
 
     // Icon
-    this.ctx.font = "48px sans-serif";
+    this.ctx.font = "bold 24px sans-serif";
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.fillText(this.showAchievement.icon, x + 50, y + boxHeight / 2);
