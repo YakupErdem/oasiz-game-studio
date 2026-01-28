@@ -343,9 +343,11 @@ class BlockBreakerGame {
   }
 
   private createBlocks(): void {
-    const padding = 20;
+    const padding = 10;
+    const sideMargin = 60;
     const topOffset = this.isMobile ? 180 : 120;
-    const blockWidth = (this.width - padding * (this.blockCols + 1)) / this.blockCols;
+    const availableWidth = this.width - (sideMargin * 2);
+    const blockWidth = (availableWidth - padding * (this.blockCols - 1)) / this.blockCols;
     const blockHeight = 40;
     
     const colors = ['#ff6b6b', '#ff8e53', '#ffd93d', '#6bcf7f', '#4d96ff', '#9d4edd'];
@@ -353,7 +355,7 @@ class BlockBreakerGame {
     
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < this.blockCols; col++) {
-        const x = padding + col * (blockWidth + padding) + blockWidth / 2;
+        const x = sideMargin + col * (blockWidth + padding) + blockWidth / 2;
         const y = topOffset + row * (blockHeight + padding) + blockHeight / 2;
         
         const maxHits = this.level > 3 ? Math.floor(Math.random() * 2) + 1 : 1;
@@ -361,7 +363,8 @@ class BlockBreakerGame {
           isStatic: true,
           restitution: 0.8,
           friction: 0,
-          frictionAir: 0
+          frictionAir: 0,
+          label: `block-${row}-${col}`
         });
         
         this.blocks.push({
