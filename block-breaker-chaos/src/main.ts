@@ -53,6 +53,7 @@ class BlockBreakerGame {
   private score: number;
   private combo: number;
   private comboTimer: number;
+  private level: number;
   private blocks: Block[];
   private balls: Ball[];
   private particles: Particle[];
@@ -85,6 +86,7 @@ class BlockBreakerGame {
     this.score = 0;
     this.combo = 0;
     this.comboTimer = 0;
+    this.level = 1;
     this.blocks = [];
     this.balls = [];
     this.particles = [];
@@ -140,6 +142,15 @@ class BlockBreakerGame {
           if (!this.collisionPairs.has(pairKey)) {
             this.collisionPairs.add(pairKey);
             this.handleBlockHit(block);
+            
+            const randomAngle = (Math.random() - 0.5) * 0.3;
+            const currentVel = ball.body.velocity;
+            const speed = Math.sqrt(currentVel.x * currentVel.x + currentVel.y * currentVel.y);
+            const angle = Math.atan2(currentVel.y, currentVel.x) + randomAngle;
+            Body.setVelocity(ball.body, {
+              x: Math.cos(angle) * speed,
+              y: Math.sin(angle) * speed
+            });
           }
         }
       });
@@ -266,6 +277,7 @@ class BlockBreakerGame {
     this.score = 0;
     this.combo = 0;
     this.comboTimer = 0;
+    this.level = 1;
     
     document.getElementById('start-screen')?.classList.add('hidden');
     document.getElementById('hud')?.classList.remove('hidden');
@@ -286,6 +298,7 @@ class BlockBreakerGame {
     this.balls = [];
     this.particles = [];
     this.explosions = [];
+    this.level = 1;
     
     document.getElementById('game-over')?.classList.add('hidden');
     this.startGame();
@@ -336,13 +349,14 @@ class BlockBreakerGame {
     const blockHeight = 40;
     
     const colors = ['#ff6b6b', '#ff8e53', '#ffd93d', '#6bcf7f', '#4d96ff', '#9d4edd'];
+    const rows = Math.min(3 + Math.floor(this.level / 2), 6);
     
-    for (let row = 0; row < this.blockRows; row++) {
+    for (let row = 0; row < rows; row++) {
       for (let col = 0; col < this.blockCols; col++) {
         const x = padding + col * (blockWidth + padding) + blockWidth / 2;
         const y = topOffset + row * (blockHeight + padding) + blockHeight / 2;
         
-        const maxHits = 1;
+        const maxHits = this.level > 3 ? Math.floor(Math.random() * 2) + 1 : 1;
         const body = Bodies.rectangle(x, y, blockWidth, blockHeight, {
           isStatic: true,
           restitution: 0.8,
@@ -417,9 +431,26 @@ class BlockBreakerGame {
       this.triggerHaptic('heavy');
       
       if (this.blocks.length === 0) {
-        this.gameOver();
+        this.nextLevel();
       }
     }
+  }
+
+  private nextLevel(): void {
+    console.log('[BlockBreakerGame] Level complete');
+    this.level++;
+    this.score += 100 * this.level;
+    this.updateScore();
+    this.triggerHaptic('success');
+    
+    this.balls.forEach(ball => World.remove(this.world, ball.body));
+    this.balls = [];
+    this.particles = [];
+    this.explosions = [];
+    
+    setTimeout(() => {
+      this.createBlocks();
+    }, 500);
   }
 
   private createExplosion(x: number, y: number): void {
@@ -453,7 +484,7 @@ class BlockBreakerGame {
 
   private updateScore(): void {
     const scoreEl = document.getElementById('score');
-    if (scoreEl) scoreEl.textContent = this.score.toString();
+    if (scoreEl) scoreEl.textContent = `Level ${this.level} - ${this.score}`;
     
     const comboEl = document.getElementById('combo');
     if (comboEl) {
@@ -504,7 +535,7 @@ class BlockBreakerGame {
       );
       
       if (speed < 5) {
-        const angle = Math.atan2(ball.body.velocity.y, ball.body.velocity.x);
+        const angle = Math.atan2(ball.body.velocity.y, ball.body.velocity.x) + (Math.random() - 0.5) * 0.5;
         Body.setVelocity(ball.body, {
           x: Math.cos(angle) * 10,
           y: Math.sin(angle) * 10
@@ -517,6 +548,13 @@ class BlockBreakerGame {
         Body.setVelocity(ball.body, {
           x: ball.body.velocity.x * scale,
           y: ball.body.velocity.y * scale
+        });
+      }
+      
+      if (Math.abs(ball.body.velocity.x) < 2 && Math.abs(ball.body.velocity.y) > 5) {
+        Body.setVelocity(ball.body, {
+          x: ball.body.velocity.x + (Math.random() - 0.5) * 4,
+          y: ball.body.velocity.y
         });
       }
     });
