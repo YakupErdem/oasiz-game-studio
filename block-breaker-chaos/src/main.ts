@@ -358,7 +358,7 @@ class BlockBreakerGame {
         const x = sideMargin + col * (blockWidth + padding) + blockWidth / 2;
         const y = topOffset + row * (blockHeight + padding) + blockHeight / 2;
         
-        const maxHits = this.level > 3 ? Math.floor(Math.random() * 2) + 1 : 1;
+        const maxHits = Math.min(Math.floor(this.level / 2) + 1, 5);
         const body = Bodies.rectangle(x, y, blockWidth, blockHeight, {
           isStatic: true,
           restitution: 0.8,
