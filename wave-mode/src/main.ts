@@ -548,6 +548,10 @@ class LevelGen {
   private topY = 0;
   private botY = 0;
   private lastForcedUp = false;
+  private zigzagSectionStartM = -1; // -1 = not in zigzag section, otherwise the start meter
+  private zigzagCount = 0; // how many zigzags completed in current section
+  private zigzagDirection = false; // false = going up, true = going down
+  private zigzagSegmentCount = 0; // segments in current zigzag direction
 
   public reset(width: number, height: number): void {
     // Worldscale: scale generation based on viewport height vs desktop baseline (720px)
@@ -557,6 +561,10 @@ class LevelGen {
     this.topY = height * 0.5 - h * 0.5;
     this.botY = this.topY + h;
     this.lastForcedUp = false;
+    this.zigzagSectionStartM = -1;
+    this.zigzagCount = 0;
+    this.zigzagDirection = false;
+    this.zigzagSegmentCount = 0;
   }
 
   public nextChunk(
@@ -597,20 +605,38 @@ class LevelGen {
 
     let x = xStart;
 
+    // Zigzag section management: clean 50m up/down segments, 5 zigzags total
+    // 50m = 500px, at ~90px per segment = ~5-6 segments per direction
+    const zigzagSegmentLength = Math.max(5, Math.floor(500 / dx)); // segments for 50m (min 5)
+    const maxZigzags = 5; // 5 zigzags = 10 direction changes total (5 up, 5 down)
+    
+    // Check if we should enter a zigzag section (randomly, every 300-500m)
+    if (this.zigzagSectionStartM < 0 && !isEmpty && meters > 200) {
+      // Use seeded random based on meters for consistency
+      const seed = Math.floor(meters / 100);
+      const r = (Math.sin(seed * 12.9898) * 43758.5453) % 1;
+      if (r < 0.15) { // 15% chance to start zigzag section
+        this.zigzagSectionStartM = meters;
+        this.zigzagCount = 0;
+        this.zigzagDirection = false; // start going up
+        this.zigzagSegmentCount = 0;
+      }
+    }
+    
+
     // Phase-based generation: creates readable zig-zags + widen/narrow moments (still 45°/flat only)
-    // Added "zigzag" to allow up/down/up/down bursts (instead of long up then long down).
-    type Phase = "flat" | "slopeUp" | "slopeDown" | "widen" | "narrow" | "zigzag";
+    type Phase = "flat" | "slopeUp" | "slopeDown" | "widen" | "narrow";
     let phase: Phase = "flat";
     let phaseLeft = 0;
     let flatRun = 0;
     let lastSlopeUp = false;
-    let zigUp = false;
     let straightRun = 0;
 
     const straightCount = isEmpty ? clamp(straightSteps ?? steps, 0, steps) : 0;
 
     for (let i = 0; i < steps; i++) {
       const x2 = Math.min(x + dx, xEnd);
+      const currentMeters = (x2 - xStart) / 10 + meters;
 
       let dyTop = 0;
       let dyBot = 0;
@@ -628,109 +654,122 @@ class LevelGen {
         continue;
       }
 
-      // Choose/refresh a short phase every few segments
-      if (phaseLeft <= 0) {
-        const r = Math.random();
-        // Early game: more flat; later: more slopes and width changes
-        const widenMul = hazardHeavy ? 1.0 : 1.55;
-        const slopeMul = hazardHeavy ? 1.0 : 1.65;
-        const zigMul = hazardHeavy ? 0.35 : 1.0;
-        const pWiden = clamp(lerp(0.10, 0.18, diff) * widenMul, 0, 0.38);
-        const pNarrow = clamp(lerp(0.08, 0.16, diff) * widenMul, 0, 0.34);
-        const pSlope = clamp(lerp(0.22, 0.40, diff) * slopeMul, 0, 0.70);
-        // Zigzag bursts: up/down/up/down for a few segments (more common in corridor-heavy chunks).
-        const pZig = clamp(lerp(0.12, 0.22, diff) * zigMul, 0, 0.26);
-
-        if (r < pWiden) phase = "widen";
-        else if (r < pWiden + pNarrow) phase = "narrow";
-        else if (r < pWiden + pNarrow + pZig) {
-          phase = "zigzag";
-          zigUp = !zigUp; // alternate burst direction each time so it doesn't bias
-        } else if (r < pWiden + pNarrow + pZig + pSlope) {
-          // Corridor-heavy: force an obvious zig-zag by alternating slope direction.
-          if (!hazardHeavy) {
-            lastSlopeUp = !lastSlopeUp;
-            phase = lastSlopeUp ? "slopeUp" : "slopeDown";
-          } else {
-            phase = Math.random() < 0.5 ? "slopeUp" : "slopeDown";
-          }
-        }
-        else phase = "flat";
-
-        // Short, punchy patterns; corridor-heavy chunks get longer motion phases
-        const baseLen = hazardHeavy ? Math.floor(lerp(2, 4, diff) + Math.random() * 2) : Math.floor(lerp(3, 6, diff) + Math.random() * 2);
-        // Zigzag should be long enough to feel like "up/down/up/down" (minimum 4 steps).
-        phaseLeft = phase === "zigzag" ? Math.max(4, baseLen + 1) : baseLen;
-      }
-      phaseLeft--;
-
-      // Apply phase (still may be overridden by randomness below)
-      if (phase === "slopeUp") {
-        dyTop = -dx;
-        dyBot = -dx;
-      } else if (phase === "slopeDown") {
-        dyTop = dx;
-        dyBot = dx;
-      } else if (phase === "zigzag") {
-        // Alternate direction each segment for the duration of this phase.
-        const dir = zigUp ? -dx : dx;
+      // Clean zigzag section: 50m up, 50m down, no randomness
+      if (this.zigzagSectionStartM >= 0) {
+        // Continue current zigzag direction
+        const dir = this.zigzagDirection ? dx : -dx;
         dyTop = dir;
         dyBot = dir;
-        zigUp = !zigUp;
-      } else if (phase === "widen") {
-        dyTop = -dx;
-        dyBot = dx;
-      } else if (phase === "narrow") {
-        dyTop = dx;
-        dyBot = -dx;
-      }
+        this.zigzagSegmentCount++;
+        
+        // After 50m (zigzagSegmentLength segments), switch direction
+        if (this.zigzagSegmentCount >= zigzagSegmentLength) {
+          this.zigzagDirection = !this.zigzagDirection;
+          this.zigzagSegmentCount = 0;
+          this.zigzagCount++;
+          
+          // Exit after 5 complete zigzags (10 direction changes: 5 up + 5 down)
+          if (this.zigzagCount >= maxZigzags * 2) {
+            this.zigzagSectionStartM = -1;
+            this.zigzagCount = 0;
+          }
+        }
+      } else {
+        // Normal phase-based generation (only when not in zigzag section)
+        // Choose/refresh a short phase every few segments
+        if (phaseLeft <= 0) {
+          const r = Math.random();
+          // Early game: more flat; later: more slopes and width changes
+          const widenMul = hazardHeavy ? 1.0 : 1.55;
+          const slopeMul = hazardHeavy ? 1.0 : 1.65;
+          const pWiden = clamp(lerp(0.10, 0.18, diff) * widenMul, 0, 0.38);
+          const pNarrow = clamp(lerp(0.08, 0.16, diff) * widenMul, 0, 0.34);
+          const pSlope = clamp(lerp(0.22, 0.40, diff) * slopeMul, 0, 0.70);
 
-      // Add some extra micro-variation inside the phase (keeps it from feeling scripted)
-      // Choose changes in {-dx,0,dx} so edges are 0° or 45° only
-      if (Math.random() < maxStepChance * 0.55) {
-        dyTop += this.pickDy(dx, diff);
-      }
-      if (Math.random() < maxStepChance * 0.55) {
-        dyBot += this.pickDy(dx, diff);
+          if (r < pWiden) phase = "widen";
+          else if (r < pWiden + pNarrow) phase = "narrow";
+          else if (r < pWiden + pNarrow + pSlope) {
+            // Corridor-heavy: force an obvious zig-zag by alternating slope direction.
+            if (!hazardHeavy) {
+              lastSlopeUp = !lastSlopeUp;
+              phase = lastSlopeUp ? "slopeUp" : "slopeDown";
+            } else {
+              phase = Math.random() < 0.5 ? "slopeUp" : "slopeDown";
+            }
+          }
+          else phase = "flat";
+
+          // Short, punchy patterns; corridor-heavy chunks get longer motion phases
+          const baseLen = hazardHeavy ? Math.floor(lerp(2, 4, diff) + Math.random() * 2) : Math.floor(lerp(3, 6, diff) + Math.random() * 2);
+          phaseLeft = baseLen;
+        }
+        phaseLeft--;
+
+        // Apply phase
+        if (phase === "slopeUp") {
+          dyTop = -dx;
+          dyBot = -dx;
+        } else if (phase === "slopeDown") {
+          dyTop = dx;
+          dyBot = dx;
+        } else if (phase === "widen") {
+          dyTop = -dx;
+          dyBot = dx;
+        } else if (phase === "narrow") {
+          dyTop = dx;
+          dyBot = -dx;
+        }
+
+        // Add some extra micro-variation inside the phase (keeps it from feeling scripted)
+        // Choose changes in {-dx,0,dx} so edges are 0° or 45° only
+        if (Math.random() < maxStepChance * 0.55) {
+          dyTop += this.pickDy(dx, diff);
+        }
+        if (Math.random() < maxStepChance * 0.55) {
+          dyBot += this.pickDy(dx, diff);
+        }
       }
 
       // Keep deltas within one 45° step.
       dyTop = clamp(dyTop, -dx, dx);
       dyBot = clamp(dyBot, -dx, dx);
 
-      // Prevent long "do nothing" straight runs (no slope + no widen/narrow).
-      // Even if hazards are sparse, we want gentle action.
-      if (dyTop === 0 && dyBot === 0) straightRun++;
-      else straightRun = 0;
+      // Skip straight-run prevention during zigzag sections (they're intentionally structured)
+      if (this.zigzagSectionStartM < 0) {
+        // Prevent long "do nothing" straight runs (no slope + no widen/narrow).
+        // Even if hazards are sparse, we want gentle action.
+        if (dyTop === 0 && dyBot === 0) straightRun++;
+        else straightRun = 0;
 
-      const maxStraight = hazardHeavy ? Math.floor(lerp(2, 3, diff)) : Math.floor(lerp(1, 2, diff));
-      if (straightRun > maxStraight) {
-        // Force a gentle zig-zag or widen/narrow (still 45° only)
-        const up = this.lastForcedUp ? false : true;
-        this.lastForcedUp = up;
+        const maxStraight = hazardHeavy ? Math.floor(lerp(2, 3, diff)) : Math.floor(lerp(1, 2, diff));
+        if (straightRun > maxStraight) {
+          // Force a gentle zig-zag or widen/narrow (still 45° only)
+          const up = this.lastForcedUp ? false : true;
+          this.lastForcedUp = up;
 
-        // Prefer a mild slope move more often than a width change (less extreme)
-        const doWidth = Math.random() < lerp(0.25, 0.40, diff);
-        if (doWidth) {
-          dyTop = up ? -dx : dx;
-          dyBot = up ? dx : -dx;
-        } else {
-          dyTop = up ? -dx : dx;
-          dyBot = up ? -dx : dx;
-        }
-        straightRun = 0;
-        flatRun = 0;
-      }
-
-      // Corridor-heavy chunks: prevent long flat runs so it doesn't feel like a straight road.
-      if (!hazardHeavy) {
-        if (dyTop === 0 && dyBot === 0) flatRun++;
-        else flatRun = 0;
-        if (flatRun >= 2) {
-          const up = (i & 1) === 0;
-          dyTop = up ? -dx : dx;
-          dyBot = up ? -dx : dx;
+          // Prefer a mild slope move more often than a width change (less extreme)
+          const doWidth = Math.random() < lerp(0.25, 0.40, diff);
+          if (doWidth) {
+            dyTop = up ? -dx : dx;
+            dyBot = up ? dx : -dx;
+          } else {
+            dyTop = up ? -dx : dx;
+            dyBot = up ? -dx : dx;
+          }
+          straightRun = 0;
           flatRun = 0;
+        }
+
+        // Corridor-heavy chunks: prevent long flat runs so it doesn't feel like a straight road.
+        if (!hazardHeavy) {
+          if (dyTop === 0 && dyBot === 0) flatRun++;
+          else flatRun = 0;
+          if (flatRun >= 2) {
+            const up = (i & 1) === 0;
+            dyTop = up ? -dx : dx;
+            dyBot = up ? -dx : dx;
+            flatRun = 0;
+          }
         }
       }
 
