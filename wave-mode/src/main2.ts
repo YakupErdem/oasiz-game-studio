@@ -35,7 +35,6 @@ interface Wheel {
   x: number;
   y: number;
   radius: number;
-  kind?: "blackhole" | "galaxy" | "supernova";
 }
 
 interface Chunk {
@@ -64,7 +63,6 @@ interface Block {
   h: number;
   seed: number; // stable visual variety (avoid Math.random() in render)
   spikes: SpikeTri[];
-  kind?: "ship" | "nebula" | "asteroid";
 }
 
 
@@ -106,8 +104,6 @@ interface RuntimePalette {
   grid: string;
   waveGlow: string;
   trail: string;
-  wallFill: string;
-  wallPattern: string;
 }
 
 const CONFIG = {
@@ -169,8 +165,6 @@ const CONFIG = {
   // Palette drift: slowly shifts the night-blue theme as you travel.
   // Higher = slower shift.
   PALETTE_SHIFT_METERS: 900,
-  // Continuous drift over time (adds subtle motion even when distance changes slowly).
-  PALETTE_TIME_SPEED: 0.018, // cycles per second in "keyframe units"
   WALL_FILL: "#140f2a",
   WALL_PATTERN: "rgba(108, 92, 255, 0.12)",
   WALL_OUTLINE: "rgba(220,255,244,0.92)",
@@ -194,8 +188,6 @@ const PALETTE_KEYFRAMES: Array<{
   grid: [number, number, number, number];
   waveGlow: [number, number, number, number];
   trail: [number, number, number, number];
-  wallFill: [number, number, number];
-  wallPattern: [number, number, number, number];
 }> = [
   // Deep night blue -> violet
   {
@@ -204,8 +196,6 @@ const PALETTE_KEYFRAMES: Array<{
     grid: [180, 255, 236, 0.06],
     waveGlow: [120, 255, 244, 0.55],
     trail: [120, 255, 244, 0.30],
-    wallFill: [20, 15, 42],
-    wallPattern: [108, 92, 255, 0.12],
   },
   // Night blue -> deep teal
   {
@@ -214,8 +204,6 @@ const PALETTE_KEYFRAMES: Array<{
     grid: [120, 255, 244, 0.055],
     waveGlow: [90, 220, 255, 0.55],
     trail: [90, 220, 255, 0.28],
-    wallFill: [12, 28, 38],
-    wallPattern: [80, 200, 255, 0.12],
   },
   // Indigo -> magenta accent
   {
@@ -224,8 +212,6 @@ const PALETTE_KEYFRAMES: Array<{
     grid: [230, 190, 255, 0.055],
     waveGlow: [255, 120, 220, 0.50],
     trail: [255, 120, 220, 0.26],
-    wallFill: [28, 18, 50],
-    wallPattern: [200, 120, 255, 0.12],
   },
   // Midnight green -> blue
   {
@@ -234,48 +220,6 @@ const PALETTE_KEYFRAMES: Array<{
     grid: [170, 255, 210, 0.055],
     waveGlow: [120, 255, 180, 0.52],
     trail: [120, 255, 180, 0.28],
-    wallFill: [8, 22, 32],
-    wallPattern: [100, 220, 200, 0.12],
-  },
-  // Red-orange -> deep red
-  {
-    bgTop: [30, 8, 12],
-    bgBottom: [72, 18, 24],
-    grid: [255, 180, 140, 0.055],
-    waveGlow: [255, 140, 100, 0.50],
-    trail: [255, 140, 100, 0.26],
-    wallFill: [50, 18, 22],
-    wallPattern: [255, 120, 100, 0.12],
-  },
-  // Purple-pink -> hot pink
-  {
-    bgTop: [24, 6, 28],
-    bgBottom: [58, 12, 52],
-    grid: [255, 150, 240, 0.055],
-    waveGlow: [255, 100, 200, 0.50],
-    trail: [255, 100, 200, 0.26],
-    wallFill: [42, 12, 48],
-    wallPattern: [255, 100, 220, 0.12],
-  },
-  // Cyan-blue -> electric blue
-  {
-    bgTop: [4, 20, 32],
-    bgBottom: [12, 40, 64],
-    grid: [150, 240, 255, 0.055],
-    waveGlow: [100, 220, 255, 0.50],
-    trail: [100, 220, 255, 0.26],
-    wallFill: [8, 32, 48],
-    wallPattern: [100, 200, 255, 0.12],
-  },
-  // Yellow-orange -> amber
-  {
-    bgTop: [32, 24, 8],
-    bgBottom: [64, 48, 16],
-    grid: [255, 220, 150, 0.055],
-    waveGlow: [255, 200, 100, 0.50],
-    trail: [255, 200, 100, 0.26],
-    wallFill: [48, 36, 16],
-    wallPattern: [255, 180, 100, 0.12],
   },
 ];
 
@@ -548,30 +492,12 @@ class LevelGen {
   private topY = 0;
   private botY = 0;
   private lastForcedUp = false;
-  private zigzagSectionStartM = -1; // -1 = not in zigzag section, otherwise the start meter
-  private zigzagCount = 0; // how many zigzags completed in current section
-  private zigzagDirection = false; // false = going up, true = going down
-  private zigzagSegmentCount = 0; // segments in current zigzag direction
 
   public reset(width: number, height: number): void {
-    // Small resolutions: ensure the corridor constraints always fit inside the viewport.
-    // Otherwise the generator can collapse and appear to "not generate a path".
-    const margin = Math.min(CONFIG.WALL_MARGIN, Math.max(12, height * 0.12));
-    const avail = Math.max(60, height - margin * 2);
-
-    // IMPORTANT: On short viewports, the absolute MIN/MAX corridor heights can be too large,
-    // leaving no headroom for vertical motion. Use availability-relative targets.
-    const maxH = Math.min(CONFIG.MAX_HEIGHT, avail * 0.78);
-    const minH = Math.max(34, Math.min(CONFIG.MIN_HEIGHT + 40, avail * 0.62, maxH - 20));
-    const h = clamp(height * 0.58, minH, maxH);
-
-    this.topY = clamp(height * 0.5 - h * 0.5, margin, height - margin - h);
+    const h = clamp(height * 0.58, CONFIG.MIN_HEIGHT + 40, CONFIG.MAX_HEIGHT);
+    this.topY = height * 0.5 - h * 0.5;
     this.botY = this.topY + h;
     this.lastForcedUp = false;
-    this.zigzagSectionStartM = -1;
-    this.zigzagCount = 0;
-    this.zigzagDirection = false;
-    this.zigzagSegmentCount = 0;
   }
 
   public nextChunk(
@@ -583,6 +509,14 @@ class LevelGen {
     straightSteps?: number,
     chunkWidthPx?: number
   ): Chunk {
+    const dx = CONFIG.SEG_DX;
+    const widthPx = chunkWidthPx ?? CONFIG.CHUNK_WIDTH;
+    const xEnd = xStart + widthPx;
+    // Use ceil so we always reach xEnd exactly (important for the 100m intro which isn't divisible by SEG_DX).
+    const steps = Math.ceil(widthPx / dx);
+    const top: Point[] = [{ x: xStart, y: this.topY }];
+    const bottom: Point[] = [{ x: xStart, y: this.botY }];
+
     const diff = this.difficulty01(meters);
 
     // Chunks alternate between "hazard-heavy" (more spikes/obstacles) and "corridor-heavy" (more zig-zag motion)
@@ -592,55 +526,13 @@ class LevelGen {
     const maxStepChance = hazardHeavy ? lerp(0.30, 0.58, diff) : lerp(0.55, 0.92, diff);
     const heightTighten = lerp(0, 1, diff);
 
-    // Height constraints must adapt on tiny viewports so the corridor always exists.
-    let margin = Math.min(CONFIG.WALL_MARGIN, Math.max(12, canvasH * 0.12));
-    // Guarantee at least ~80px of usable corridor space (or as much as possible).
-    margin = Math.min(margin, Math.max(0, (canvasH - 80) * 0.5));
-    const marginTop = margin;
-    const marginBot = canvasH - margin;
-    const avail = Math.max(60, marginBot - marginTop);
+    const minH = lerp(CONFIG.MAX_HEIGHT, CONFIG.MIN_HEIGHT, heightTighten);
+    const maxH = lerp(CONFIG.MAX_HEIGHT, CONFIG.MIN_HEIGHT + 110, heightTighten);
 
-    // Corridor height window:
-    // Use availability-relative sizes so short viewports still get meaningful up/down motion.
-    // Easy: wider corridor; Hard: tighter corridor.
-    const maxH = clamp(avail * lerp(0.78, 0.62, heightTighten), 54, avail);
-    const minH = clamp(avail * lerp(0.62, 0.44, heightTighten), 34, maxH - 20);
-
-    // Critical for small screens:
-    // The vertical step size MUST be smaller than the available headroom for the corridor center to move.
-    // Otherwise every attempt to go up/down clamps to bounds and quantizes back to "flat", producing straight corridors.
-    const baseDx = CONFIG.SEG_DX;
-    const headroom = Math.max(24, avail - maxH); // worst-case center movement range
-    const effectiveDx = clamp(Math.floor(headroom * 0.9), 24, baseDx);
-
-    const widthPx = chunkWidthPx ?? CONFIG.CHUNK_WIDTH;
-    const xEnd = xStart + widthPx;
-    // Use ceil so we always reach xEnd exactly (important for the intro which isn't divisible by SEG_DX).
-    const steps = Math.ceil(widthPx / effectiveDx);
-    const top: Point[] = [{ x: xStart, y: this.topY }];
-    const bottom: Point[] = [{ x: xStart, y: this.botY }];
+    const marginTop = CONFIG.WALL_MARGIN;
+    const marginBot = canvasH - CONFIG.WALL_MARGIN;
 
     let x = xStart;
-
-    // Zigzag section management: clean 50m up/down segments, 5 zigzags total
-    // 50m = 500px, at ~90px per segment = ~5-6 segments per direction
-    const zigzagSegmentLength = Math.max(5, Math.floor(500 / effectiveDx)); // segments for 50m (min 5)
-    const maxZigzags = 5; // 5 zigzags = 10 direction changes total (5 up, 5 down)
-    const smallViewport = canvasH < 520 || avail < 240;
-    
-    // Check if we should enter a zigzag section (randomly, every 300-500m)
-    if (!smallViewport && this.zigzagSectionStartM < 0 && !isEmpty && meters > 200) {
-      // Use seeded random based on meters for consistency
-      const seed = Math.floor(meters / 100);
-      const r = (Math.sin(seed * 12.9898) * 43758.5453) % 1;
-      if (r < 0.15) { // 15% chance to start zigzag section
-        this.zigzagSectionStartM = meters;
-        this.zigzagCount = 0;
-        this.zigzagDirection = false; // start going up
-        this.zigzagSegmentCount = 0;
-      }
-    }
-    
 
     // Phase-based generation: creates readable zig-zags + widen/narrow moments (still 45°/flat only)
     type Phase = "flat" | "slopeUp" | "slopeDown" | "widen" | "narrow";
@@ -653,8 +545,7 @@ class LevelGen {
     const straightCount = isEmpty ? clamp(straightSteps ?? steps, 0, steps) : 0;
 
     for (let i = 0; i < steps; i++) {
-      const x2 = Math.min(x + effectiveDx, xEnd);
-      const currentMeters = (x2 - xStart) / 10 + meters;
+      const x2 = Math.min(x + dx, xEnd);
 
       let dyTop = 0;
       let dyBot = 0;
@@ -667,127 +558,99 @@ class LevelGen {
         top.push({ x: x2, y: this.topY });
         bottom.push({ x: x2, y: this.botY });
         x = x2;
-        // Prevent duplicating the final point when widthPx isn't divisible by effectiveDx.
+        // Prevent duplicating the final point when widthPx isn't divisible by dx.
         if (x >= xEnd - 0.001) break;
         continue;
       }
 
-      // Clean zigzag section: 50m up, 50m down, no randomness
-      if (!smallViewport && this.zigzagSectionStartM >= 0) {
-        // Continue current zigzag direction
-        const dir = this.zigzagDirection ? effectiveDx : -effectiveDx;
-        dyTop = dir;
-        dyBot = dir;
-        this.zigzagSegmentCount++;
-        
-        // After 50m (zigzagSegmentLength segments), switch direction
-        if (this.zigzagSegmentCount >= zigzagSegmentLength) {
-          this.zigzagDirection = !this.zigzagDirection;
-          this.zigzagSegmentCount = 0;
-          this.zigzagCount++;
-          
-          // Exit after 5 complete zigzags (10 direction changes: 5 up + 5 down)
-          if (this.zigzagCount >= maxZigzags * 2) {
-            this.zigzagSectionStartM = -1;
-            this.zigzagCount = 0;
+      // Choose/refresh a short phase every few segments
+      if (phaseLeft <= 0) {
+        const r = Math.random();
+        // Early game: more flat; later: more slopes and width changes
+        const widenMul = hazardHeavy ? 1.0 : 1.55;
+        const slopeMul = hazardHeavy ? 1.0 : 1.65;
+        const pWiden = clamp(lerp(0.10, 0.18, diff) * widenMul, 0, 0.38);
+        const pNarrow = clamp(lerp(0.08, 0.16, diff) * widenMul, 0, 0.34);
+        const pSlope = clamp(lerp(0.22, 0.40, diff) * slopeMul, 0, 0.70);
+        if (r < pWiden) phase = "widen";
+        else if (r < pWiden + pNarrow) phase = "narrow";
+        else if (r < pWiden + pNarrow + pSlope) {
+          // Corridor-heavy: force an obvious zig-zag by alternating slope direction.
+          if (!hazardHeavy) {
+            lastSlopeUp = !lastSlopeUp;
+            phase = lastSlopeUp ? "slopeUp" : "slopeDown";
+          } else {
+            phase = Math.random() < 0.5 ? "slopeUp" : "slopeDown";
           }
         }
-      } else {
-        // Normal phase-based generation (only when not in zigzag section)
-        // Choose/refresh a short phase every few segments
-        if (phaseLeft <= 0) {
-          const r = Math.random();
-          // Early game: more flat; later: more slopes and width changes
-          const widenMul = hazardHeavy ? 1.0 : 1.55;
-          const slopeMul = hazardHeavy ? 1.0 : 1.65;
-          const pWiden = clamp(lerp(0.10, 0.18, diff) * widenMul, 0, 0.38);
-          const pNarrow = clamp(lerp(0.08, 0.16, diff) * widenMul, 0, 0.34);
-          const pSlope = clamp(lerp(0.22, 0.40, diff) * slopeMul, 0, 0.70);
+        else phase = "flat";
 
-          if (r < pWiden) phase = "widen";
-          else if (r < pWiden + pNarrow) phase = "narrow";
-          else if (r < pWiden + pNarrow + pSlope) {
-            // Corridor-heavy: force an obvious zig-zag by alternating slope direction.
-            if (!hazardHeavy) {
-              lastSlopeUp = !lastSlopeUp;
-              phase = lastSlopeUp ? "slopeUp" : "slopeDown";
-            } else {
-              phase = Math.random() < 0.5 ? "slopeUp" : "slopeDown";
-            }
-          }
-          else phase = "flat";
+        // Short, punchy patterns; corridor-heavy chunks get longer motion phases
+        phaseLeft = hazardHeavy ? Math.floor(lerp(2, 4, diff) + Math.random() * 2) : Math.floor(lerp(3, 6, diff) + Math.random() * 2);
+      }
+      phaseLeft--;
 
-          // Short, punchy patterns; corridor-heavy chunks get longer motion phases
-          const baseLen = hazardHeavy ? Math.floor(lerp(2, 4, diff) + Math.random() * 2) : Math.floor(lerp(3, 6, diff) + Math.random() * 2);
-          phaseLeft = baseLen;
-        }
-        phaseLeft--;
+      // Apply phase (still may be overridden by randomness below)
+      if (phase === "slopeUp") {
+        dyTop = -dx;
+        dyBot = -dx;
+      } else if (phase === "slopeDown") {
+        dyTop = dx;
+        dyBot = dx;
+      } else if (phase === "widen") {
+        dyTop = -dx;
+        dyBot = dx;
+      } else if (phase === "narrow") {
+        dyTop = dx;
+        dyBot = -dx;
+      }
 
-        // Apply phase
-        if (phase === "slopeUp") {
-          dyTop = -effectiveDx;
-          dyBot = -effectiveDx;
-        } else if (phase === "slopeDown") {
-          dyTop = effectiveDx;
-          dyBot = effectiveDx;
-        } else if (phase === "widen") {
-          dyTop = -effectiveDx;
-          dyBot = effectiveDx;
-        } else if (phase === "narrow") {
-          dyTop = effectiveDx;
-          dyBot = -effectiveDx;
-        }
-
-        // Add some extra micro-variation inside the phase (keeps it from feeling scripted)
-        // Choose changes in {-effectiveDx,0,effectiveDx} so edges are 0° or 45° only
-        if (Math.random() < maxStepChance * 0.55) {
-          dyTop += this.pickDy(effectiveDx, diff);
-        }
-        if (Math.random() < maxStepChance * 0.55) {
-          dyBot += this.pickDy(effectiveDx, diff);
-        }
+      // Add some extra micro-variation inside the phase (keeps it from feeling scripted)
+      // Choose changes in {-dx,0,dx} so edges are 0° or 45° only
+      if (Math.random() < maxStepChance * 0.55) {
+        dyTop += this.pickDy(dx, diff);
+      }
+      if (Math.random() < maxStepChance * 0.55) {
+        dyBot += this.pickDy(dx, diff);
       }
 
       // Keep deltas within one 45° step.
-      dyTop = clamp(dyTop, -effectiveDx, effectiveDx);
-      dyBot = clamp(dyBot, -effectiveDx, effectiveDx);
+      dyTop = clamp(dyTop, -dx, dx);
+      dyBot = clamp(dyBot, -dx, dx);
 
-      // Skip straight-run prevention during zigzag sections (they're intentionally structured)
-      if (this.zigzagSectionStartM < 0) {
-        // Prevent long "do nothing" straight runs (no slope + no widen/narrow).
-        // Even if hazards are sparse, we want gentle action.
-        if (dyTop === 0 && dyBot === 0) straightRun++;
-        else straightRun = 0;
+      // Prevent long "do nothing" straight runs (no slope + no widen/narrow).
+      // Even if hazards are sparse, we want gentle action.
+      if (dyTop === 0 && dyBot === 0) straightRun++;
+      else straightRun = 0;
 
-        const maxStraight = hazardHeavy ? Math.floor(lerp(2, 3, diff)) : Math.floor(lerp(1, 2, diff));
-        if (straightRun > maxStraight) {
-          // Force a gentle zig-zag or widen/narrow (still 45° only)
-          const up = this.lastForcedUp ? false : true;
-          this.lastForcedUp = up;
+      const maxStraight = hazardHeavy ? Math.floor(lerp(2, 3, diff)) : Math.floor(lerp(1, 2, diff));
+      if (straightRun > maxStraight) {
+        // Force a gentle zig-zag or widen/narrow (still 45° only)
+        const up = this.lastForcedUp ? false : true;
+        this.lastForcedUp = up;
 
-          // Prefer a mild slope move more often than a width change (less extreme)
-          const doWidth = Math.random() < lerp(0.25, 0.40, diff);
-          if (doWidth) {
-            dyTop = up ? -effectiveDx : effectiveDx;
-            dyBot = up ? effectiveDx : -effectiveDx;
-          } else {
-            dyTop = up ? -effectiveDx : effectiveDx;
-            dyBot = up ? -effectiveDx : effectiveDx;
-          }
-          straightRun = 0;
-          flatRun = 0;
+        // Prefer a mild slope move more often than a width change (less extreme)
+        const doWidth = Math.random() < lerp(0.25, 0.40, diff);
+        if (doWidth) {
+          dyTop = up ? -dx : dx;
+          dyBot = up ? dx : -dx;
+        } else {
+          dyTop = up ? -dx : dx;
+          dyBot = up ? -dx : dx;
         }
+        straightRun = 0;
+        flatRun = 0;
+      }
 
-        // Corridor-heavy chunks: prevent long flat runs so it doesn't feel like a straight road.
-        if (!hazardHeavy) {
-          if (dyTop === 0 && dyBot === 0) flatRun++;
-          else flatRun = 0;
+      // Corridor-heavy chunks: prevent long flat runs so it doesn't feel like a straight road.
+      if (!hazardHeavy) {
+        if (dyTop === 0 && dyBot === 0) flatRun++;
+        else flatRun = 0;
         if (flatRun >= 2) {
           const up = (i & 1) === 0;
-          dyTop = up ? -effectiveDx : effectiveDx;
-          dyBot = up ? -effectiveDx : effectiveDx;
+          dyTop = up ? -dx : dx;
+          dyBot = up ? -dx : dx;
           flatRun = 0;
-        }
         }
       }
 
@@ -812,16 +675,16 @@ class LevelGen {
         b2 = clamp(b2 - pull, marginTop + minH, marginBot);
       }
 
-      // Re-quantize to keep 45°/flat: make deltas exactly -effectiveDx/0/+effectiveDx relative to previous
-      t2 = this.quantizeStep(this.topY, t2, effectiveDx);
-      b2 = this.quantizeStep(this.botY, b2, effectiveDx);
+      // Re-quantize to keep 45°/flat: make deltas exactly -dx/0/+dx relative to previous
+      t2 = this.quantizeStep(this.topY, t2, dx);
+      b2 = this.quantizeStep(this.botY, b2, dx);
 
       // Final safety for min height after quantization
       if (b2 - t2 < minH) {
         // prefer moving bottom away from top
         const need = minH - (b2 - t2);
         b2 = clamp(b2 + need, marginTop + minH, marginBot);
-        b2 = this.quantizeStep(this.botY, b2, effectiveDx);
+        b2 = this.quantizeStep(this.botY, b2, dx);
         if (b2 - t2 < minH) {
           // fallback: flatten both
           t2 = this.topY;
@@ -1167,14 +1030,11 @@ class WaveModeGame {
   private waveY = 0; // screen-space (derived from waveWorldY - camY)
   private waveWorldY = 0; // world-space (physics position; camera must not affect this)
   private holding = false;
-  private prevHolding = false; // track previous holding state for haptic feedback
   private scrollX = 0;
   private meters = 0;
+  private sessionBestMeters = 0;
   private speedMul = 1;
   private isSlidingOnSurface = false; // true when clamped to roof/ground
-  private slidingSurface: "top" | "bottom" | null = null; // which surface we were clamped to last frame
-  private prevRoofSlopeUp = false; // track if we were sliding up a roof slope last frame
-  private cachedCorridorInfo: { x: number; info: { topY: number; bottomY: number; topFlat: boolean; bottomFlat: boolean; topDy: number; bottomDy: number } } | null = null; // cache corridor info
 
   private camY = 0;
   private shakeT = 0;
@@ -1200,15 +1060,11 @@ class WaveModeGame {
     grid: CONFIG.GRID_COLOR,
     waveGlow: CONFIG.WAVE_GLOW,
     trail: CONFIG.TRAIL,
-    wallFill: CONFIG.WALL_FILL,
-    wallPattern: CONFIG.WALL_PATTERN,
   };
-  private paletteOffset = 0; // Random offset to start from different colors each game
 
   // Cached wall pattern (huge perf win vs drawing thousands of tiny shapes every frame)
   private wallPattern: CanvasPattern | null = null;
   private wallPatternTile: HTMLCanvasElement | null = null;
-  private lastWallPatternColor = ""; // Track color to rebuild pattern when it changes
 
   // Chunk generation queue (keeps generation work away from critical frames)
   private pendingChunkStarts: number[] = [];
@@ -1217,16 +1073,6 @@ class WaveModeGame {
   private gen = new LevelGen();
   private chunks: Chunk[] = [];
 
-  // Pixel-art mode looks best when the world is rendered on whole pixels.
-  // We keep physics/camera in floats, but snap ONLY for rendering to avoid "swimming/sliding" artifacts.
-  private renderScrollX(): number {
-    return CONFIG.PIXEL_ART ? Math.round(this.scrollX) : this.scrollX;
-  }
-
-  private renderCamY(): number {
-    return CONFIG.PIXEL_ART ? Math.round(this.camY) : this.camY;
-  }
-  
   // UI
   private startOverlay = document.getElementById("startOverlay") as HTMLElement;
   private gameOverOverlay = document.getElementById("gameOverOverlay") as HTMLElement;
@@ -1366,23 +1212,10 @@ class WaveModeGame {
     this.speedMul = CONFIG.SPEED_BASE;
     this.waveX = this.viewW() * 0.22;
     this.camY = 0;
-    // Temporary; we'll snap to corridor center after we generate the intro chunk.
     this.waveWorldY = this.viewH() * 0.52;
     this.waveY = this.waveWorldY - this.camY;
     this.trail = [];
     this.holding = false;
-    this.prevHolding = false;
-    this.prevRoofSlopeUp = false;
-
-    // Randomize starting palette offset for very different colors each game
-    this.paletteOffset = Math.random() * PALETTE_KEYFRAMES.length;
-    
-    // Invalidate wall pattern cache so it rebuilds with new colors
-    this.wallPattern = null;
-    this.lastWallPatternColor = "";
-    
-    // Clear corridor info cache
-    this.cachedCorridorInfo = null;
 
     this.gen.reset(this.viewW(), this.viewH());
     this.chunks = [];
@@ -1392,12 +1225,6 @@ class WaveModeGame {
     const introPx = CONFIG.INTRO_SAFE_METERS * 10; // meters are worldX/10
     const introChunk = this.gen.nextChunk(0, this.viewW(), this.viewH(), 0, true, undefined, introPx);
     this.chunks.push(introChunk);
-
-    // Ensure the player always spawns inside the corridor (critical on small resolutions).
-    const spawnX = this.waveX; // worldX when scrollX=0
-    const spawnBounds = this.corridorAtX(introChunk, spawnX);
-    this.waveWorldY = (spawnBounds.topY + spawnBounds.bottomY) * 0.5;
-    this.waveY = this.waveWorldY - this.camY;
 
     // Then prebuild a few normal chunks.
     let x = introPx;
@@ -1482,10 +1309,7 @@ class WaveModeGame {
     if (keys.length === 0) return;
 
     const meters = this.state === "PLAYING" ? this.meters : 0;
-    const tSec = performance.now() * 0.001;
-    // Combine distance-based drift with a small time drift for a continuously shifting background.
-    // Add paletteOffset to start from a different color each game
-    const phase = this.paletteOffset + meters / Math.max(1, CONFIG.PALETTE_SHIFT_METERS) + tSec * CONFIG.PALETTE_TIME_SPEED;
+    const phase = meters / Math.max(1, CONFIG.PALETTE_SHIFT_METERS);
     const i0 = ((Math.floor(phase) % keys.length) + keys.length) % keys.length;
     const i1 = (i0 + 1) % keys.length;
     const t = smoothstep(phase - Math.floor(phase));
@@ -1498,16 +1322,12 @@ class WaveModeGame {
     const grid = lerp4(a.grid, b.grid, t);
     const glow = lerp4(a.waveGlow, b.waveGlow, t);
     const trail = lerp4(a.trail, b.trail, t);
-    const wallFill = lerp3(a.wallFill, b.wallFill, t);
-    const wallPattern = lerp4(a.wallPattern, b.wallPattern, t);
 
     this.runtimePalette.bgTop = rgb(bgTop[0], bgTop[1], bgTop[2]);
     this.runtimePalette.bgBottom = rgb(bgBottom[0], bgBottom[1], bgBottom[2]);
     this.runtimePalette.grid = rgba(grid[0], grid[1], grid[2], grid[3]);
     this.runtimePalette.waveGlow = rgba(glow[0], glow[1], glow[2], glow[3]);
     this.runtimePalette.trail = rgba(trail[0], trail[1], trail[2], trail[3]);
-    this.runtimePalette.wallFill = rgb(wallFill[0], wallFill[1], wallFill[2]);
-    this.runtimePalette.wallPattern = rgba(wallPattern[0], wallPattern[1], wallPattern[2], wallPattern[3]);
   }
 
   private setupUI(): void {
@@ -1619,6 +1439,7 @@ class WaveModeGame {
     this.toggleMusic.classList.toggle("active", this.settings.music);
     this.toggleFx.classList.toggle("active", this.settings.fx);
     this.toggleHaptics.classList.toggle("active", this.settings.haptics);
+    this.highScoreEl.textContent = `Best: ${Math.floor(this.sessionBestMeters)}m`;
   }
 
   private loadSettings(): void {
@@ -1848,12 +1669,18 @@ class WaveModeGame {
     this.state = "GAME_OVER";
 
     const final = Math.max(0, Math.floor(this.meters));
+    const prevBest = Math.max(0, Math.floor(this.sessionBestMeters));
+    const nextBest = Math.max(prevBest, final);
+    const isNew = final > prevBest;
+    this.sessionBestMeters = nextBest;
 
     console.log("[WaveModeGame] Game over. Distance:", final);
-    // Animate counter (distance only)
-    this.newRecordEl.style.display = "none";
-    this.animateGameOverCounters(final);
+    // Animate counters (distance + best)
+    this.newRecordEl.style.display = isNew ? "block" : "none";
+    this.animateGameOverCounters(final, nextBest);
 
+    // Update HUD best (session-only)
+    this.highScoreEl.textContent = `Best: ${nextBest}m`;
     this.gameOverOverlay.classList.remove("hidden");
     this.pauseOverlay.classList.add("hidden");
 
@@ -1863,7 +1690,7 @@ class WaveModeGame {
     }
   }
 
-  private animateGameOverCounters(finalMeters: number): void {
+  private animateGameOverCounters(finalMeters: number, bestMeters: number): void {
     if (this.counterAnimRaf) cancelAnimationFrame(this.counterAnimRaf);
 
     const start = performance.now();
@@ -1880,12 +1707,15 @@ class WaveModeGame {
       const e = easeOutCubic(t);
 
       const d = Math.floor(finalMeters * e);
+      const b = Math.floor(bestMeters * e);
 
       this.finalDistanceEl.textContent = `Distance: ${d}m`;
+      this.bestDistanceEl.textContent = `Best: ${b}m`;
 
       if (this.settings.fx) {
-        if (d >= lastTickValue + step && d < finalMeters) {
-          lastTickValue = d;
+        const v = Math.max(d, b);
+        if (v >= lastTickValue + step && v < Math.max(finalMeters, bestMeters)) {
+          lastTickValue = v;
           this.audio.tick();
         }
       }
@@ -1893,8 +1723,9 @@ class WaveModeGame {
       if (t < 1) this.counterAnimRaf = requestAnimationFrame(tick);
     };
 
-    // reset label instantly so it always counts up cleanly
+    // reset labels instantly so it always counts up cleanly
     this.finalDistanceEl.textContent = "Distance: 0m";
+    this.bestDistanceEl.textContent = "Best: 0m";
     this.counterAnimRaf = requestAnimationFrame(tick);
   }
 
@@ -1935,19 +1766,13 @@ class WaveModeGame {
     const vx = CONFIG.WAVE_SPEED_X * this.speedMul;
     const vy = (this.holding ? -1 : 1) * CONFIG.WAVE_SPEED_Y * this.speedMul;
 
-    // Haptic feedback when changing direction (going up or down)
-    if (this.holding !== this.prevHolding) {
-      triggerHaptic(this.settings, "light");
-    }
-    this.prevHolding = this.holding;
-
     this.scrollX += vx * dt;
     // IMPORTANT: vertical motion is in world-space so camera motion never changes the movement angle.
     this.waveWorldY += vy * dt;
 
     // Keep chunks far ahead and generate them with a tiny time budget per frame
     this.enqueueChunksAhead();
-    this.processChunkQueue(0.8); // Reduced from 1.2ms for better performance
+    this.processChunkQueue(1.2);
 
     // Camera follows corridor center vertically (so path stays centered as it slopes)
     const worldX = this.scrollX + this.waveX;
@@ -1966,24 +1791,12 @@ class WaveModeGame {
 
     // Sliding rules:
     // - Flat segments: allow sliding (roof/ground).
-    // - Slopes:
-    //   - Ground (bottom): allow sliding only when moving DOWN (release) and the segment slopes DOWN (or flat).
-    //   - Roof (top): allow sliding only when moving UP (hold) AND you were already sliding on the roof.
-    //     This is the "opposite of ground": you can ride up roof slopes once you're latched, but you can't ride down them.
+    // - Slopes: allow sliding ONLY when moving DOWN (release) and the segment slopes DOWN (or flat).
+    //   This prevents "climbing" slopes while still allowing sliding down them.
     let worldY = this.waveWorldY;
-    const wasSlidingTop = this.slidingSurface === "top";
-    this.slidingSurface = null;
     this.isSlidingOnSurface = false;
     if (currentChunk) {
-      // Cache corridor info to avoid recalculating if x hasn't changed much
-      const cacheThreshold = 5; // pixels
-      let info: { topY: number; bottomY: number; topFlat: boolean; bottomFlat: boolean; topDy: number; bottomDy: number };
-      if (this.cachedCorridorInfo && Math.abs(this.cachedCorridorInfo.x - worldX) < cacheThreshold) {
-        info = this.cachedCorridorInfo.info;
-      } else {
-        info = this.corridorAtXInfo(currentChunk, worldX);
-        this.cachedCorridorInfo = { x: worldX, info };
-      }
+      const info = this.corridorAtXInfo(currentChunk, worldX);
       // On 45° slopes the perpendicular distance to the wall is ~verticalDelta / sqrt(2),
       // so we increase the vertical margin on sloped segments to avoid dying while "sliding down".
       const r = CONFIG.WAVE_SIZE * 0.55;
@@ -1993,48 +1806,21 @@ class WaveModeGame {
       const minY = info.topY + baseMargin * topSlopeFactor;
       const maxY = info.bottomY - baseMargin * bottomSlopeFactor;
       const movingDown = !this.holding;
-      const movingUp = this.holding;
 
       if (worldY < minY) {
-        // Roof:
-        // - Flat: always allow.
-        // - Sloped: only allow if we were already roof-sliding AND we're moving UP (hold)
-        //   AND the roof segment is sloping UP (or essentially flat).
-        const roofSlopeUpOrFlat = info.topDy <= 0.1;
-        const isSlidingUpSlope = !info.topFlat && movingUp && roofSlopeUpOrFlat;
-        const topAllowsSlide = info.topFlat || (wasSlidingTop && isSlidingUpSlope);
+        const topAllowsSlide = info.topFlat || (movingDown && info.topDy >= -0.1);
         if (topAllowsSlide) {
           worldY = minY;
           this.waveWorldY = worldY;
           this.isSlidingOnSurface = true;
-          // Haptic feedback when first touching the roof
-          if (!wasSlidingTop) {
-            triggerHaptic(this.settings, "light");
-          }
-          // Haptic feedback when transitioning to sliding up a roof slope
-          if (wasSlidingTop && isSlidingUpSlope && !this.prevRoofSlopeUp) {
-            triggerHaptic(this.settings, "light");
-          }
-          this.slidingSurface = "top";
-          this.prevRoofSlopeUp = isSlidingUpSlope;
-        } else {
-          this.prevRoofSlopeUp = false;
         }
       } else if (worldY > maxY) {
-        // Ground:
-        // - Flat: always allow.
-        // - Sloped: only allow when moving DOWN (release) and segment is not sloping UP.
         const bottomAllowsSlide = info.bottomFlat || (movingDown && info.bottomDy >= -0.1);
         if (bottomAllowsSlide) {
           worldY = maxY;
           this.waveWorldY = worldY;
           this.isSlidingOnSurface = true;
-          this.slidingSurface = "bottom";
         }
-        this.prevRoofSlopeUp = false;
-      } else {
-        // Not touching roof or ground
-        this.prevRoofSlopeUp = false;
       }
     }
 
@@ -2075,8 +1861,8 @@ class WaveModeGame {
 
   private enqueueChunksAhead(): void {
     // Keep a generous buffer so generation happens before the player reaches it.
-    // Reduced lookahead for better performance (from 3.0x to 2.5x)
-    const lookahead = this.viewW() * 2.5;
+    // Larger buffer = less likely a chunk build happens on a "tight" frame.
+    const lookahead = this.viewW() * 3.0;
     const needX = this.scrollX + lookahead;
 
     // Ensure plannedXEnd starts at current last chunk end (covers edge cases)
@@ -2106,12 +1892,8 @@ class WaveModeGame {
       const c = this.gen.nextChunk(xStart, this.viewW(), this.viewH(), meters, false);
       this.chunks.push(c);
 
-      // Keep memory bounded (reduced from 10 to 8 for better performance)
-      if (this.chunks.length > 8) {
-        this.chunks.shift();
-        // Invalidate cache when chunks change
-        this.cachedCorridorInfo = null;
-      }
+      // Keep memory bounded
+      while (this.chunks.length > 10) this.chunks.shift();
 
       // Time budget: stop once we've spent enough time this frame.
       if (performance.now() - start >= budgetMs) break;
@@ -2519,49 +2301,20 @@ class WaveModeGame {
   private drawWorld(): void {
     const ctx = this.ctx;
     ctx.save();
-    const rScrollX = this.renderScrollX();
-    const rCamY = this.renderCamY();
-    ctx.translate(-rScrollX, -rCamY);
+    ctx.translate(-this.scrollX, -this.camY);
 
-    // draw walls for visible chunks (reduced range for better performance)
-    const visibleStart = rScrollX - 100;
-    const visibleEnd = rScrollX + this.viewW() + 400;
-    const visibleTop = rCamY - 50;
-    const visibleBottom = rCamY + this.viewH() + 50;
+    // draw walls for visible chunks
+    const visibleStart = this.scrollX - 200;
+    const visibleEnd = this.scrollX + this.viewW() + 600;
 
     for (const c of this.chunks) {
       if (c.xEnd < visibleStart || c.xStart > visibleEnd) continue;
-
       this.drawWalls(c);
-
-      for (const b of c.blocks) {
-        const x0 = b.x - b.w * 0.5;
-        const y0 = b.y;
-        if (x0 + b.w < visibleStart || x0 > visibleEnd) continue;
-        if (y0 + b.h < visibleTop || y0 > visibleBottom) continue;
-        this.drawBlock(b);
-      }
-
-      const visibleSpikes: SpikeTri[] = [];
-      for (const s of c.spikes) {
-        const minX = Math.min(s.ax, s.bx, s.cx);
-        const maxX = Math.max(s.ax, s.bx, s.cx);
-        const minY = Math.min(s.ay, s.by, s.cy);
-        const maxY = Math.max(s.ay, s.by, s.cy);
-        if (maxX < visibleStart || minX > visibleEnd) continue;
-        if (maxY < visibleTop || minY > visibleBottom) continue;
-        visibleSpikes.push(s);
-      }
-      this.drawSpikes(visibleSpikes);
-
-      const visibleWheels: Wheel[] = [];
-      for (const w of c.wheels) {
-        if (w.x + w.radius < visibleStart || w.x - w.radius > visibleEnd) continue;
-        if (w.y + w.radius < visibleTop || w.y - w.radius > visibleBottom) continue;
-        visibleWheels.push(w);
-      }
-      this.drawWheels(visibleWheels);
+      for (const b of c.blocks) this.drawBlock(b);
+      this.drawSpikes(c.spikes);
+      this.drawWheels(c.wheels);
     }
+
     ctx.restore();
   }
 
@@ -2574,7 +2327,7 @@ class WaveModeGame {
     const bottomExtend = h + extend;
 
     // Top fill - extend far beyond screen
-    ctx.fillStyle = this.runtimePalette.wallFill;
+    ctx.fillStyle = CONFIG.WALL_FILL;
     ctx.beginPath();
     ctx.moveTo(c.top[0].x, topExtend);
     for (const p of c.top) ctx.lineTo(p.x, p.y);
@@ -2766,13 +2519,6 @@ class WaveModeGame {
   }
 
   private rebuildWallPattern(): void {
-    // Check if color changed - if not and pattern exists, reuse it
-    const currentColor = this.runtimePalette.wallPattern;
-    if (this.wallPattern && this.lastWallPatternColor === currentColor) {
-      return; // Pattern is still valid
-    }
-    this.lastWallPatternColor = currentColor;
-    
     // A small tiled pattern we can repeat cheaply.
     const tileSize = 96;
     const tile = document.createElement("canvas");
@@ -2782,8 +2528,8 @@ class WaveModeGame {
     if (!tctx) return;
 
     tctx.clearRect(0, 0, tileSize, tileSize);
-    tctx.fillStyle = this.runtimePalette.wallPattern;
-    tctx.strokeStyle = this.runtimePalette.wallPattern;
+    tctx.fillStyle = CONFIG.WALL_PATTERN;
+    tctx.strokeStyle = CONFIG.WALL_PATTERN;
     tctx.lineWidth = 2;
 
     // Draw a few simple “frame-like” glyphs in the tile. Repeat gives the wall texture.
@@ -2967,230 +2713,6 @@ class WaveModeGame {
     ctx.restore();
   }
 
-  // Nebula variant (uses the same block placement/collision as floating obstacles)
-  private drawNebulaBlock(b: Block): void {
-    const ctx = this.ctx;
-    const seed = b.seed;
-    const time = performance.now() * 0.001;
-
-    const frac = (v: number): number => v - Math.floor(v);
-    const hash01 = (v: number): number => frac(Math.sin(v) * 43758.5453123);
-    const s1 = hash01(seed * 91.7 + b.x * 0.0031 + b.y * 0.0047);
-    const s2 = hash01(seed * 33.3 + b.x * 0.0019);
-    const pulse = 0.65 + 0.35 * Math.sin(time * (1.4 + s1) + seed * 20.0);
-
-    const cx = b.x;
-    const cy = b.y + b.h * 0.5;
-    const r = Math.max(18, Math.min(b.w, b.h) * 0.62);
-
-    ctx.save();
-    ctx.translate(cx, cy);
-
-    // Big soft glow cloud (stacked radial blobs)
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 54;
-    ctx.globalAlpha = 0.34 + 0.22 * pulse;
-
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2 + s2 * 3.0;
-      const rr = r * (0.44 + 0.32 * hash01(seed * 10 + i * 7.7));
-      const ox = Math.cos(a) * r * (0.24 + 0.18 * hash01(seed * 20 + i * 3.3));
-      const oy = Math.sin(a) * r * (0.20 + 0.16 * hash01(seed * 30 + i * 5.9));
-      const grad = ctx.createRadialGradient(ox, oy, rr * 0.10, ox, oy, rr);
-      grad.addColorStop(0.0, "rgba(255,255,255,0.16)");
-      grad.addColorStop(0.35, this.runtimePalette.trail);
-      grad.addColorStop(1.0, "rgba(0,0,0,0)");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(ox, oy, rr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Colored core (nebula should NOT be black)
-    ctx.globalCompositeOperation = "source-over";
-    ctx.shadowBlur = 0;
-    ctx.globalAlpha = 0.88;
-    const core = ctx.createRadialGradient(0, 0, r * 0.10, 0, 0, r * 0.70);
-    core.addColorStop(0.0, "rgba(255,255,255,0.16)");
-    core.addColorStop(0.25, "rgba(255,120,220,0.24)");
-    core.addColorStop(0.55, this.runtimePalette.trail);
-    core.addColorStop(1.0, "rgba(10,12,28,0.96)");
-    ctx.fillStyle = core;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.62, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Rim highlight + "lightning" streaks
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 22;
-    ctx.globalAlpha = 0.28 + 0.16 * pulse;
-    ctx.strokeStyle = "rgba(255,255,255,0.26)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.60, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.shadowBlur = 16;
-    ctx.globalAlpha = 0.12 + 0.12 * pulse;
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
-    ctx.lineWidth = 2;
-    for (let i = 0; i < 3; i++) {
-      const a = (seed * 10 + i * 2.4) % (Math.PI * 2);
-      const r0 = r * (0.20 + 0.10 * hash01(seed * 70 + i * 7.1));
-      const r1 = r * (0.70 + 0.10 * hash01(seed * 90 + i * 5.3));
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
-      ctx.lineTo(Math.cos(a + 0.55) * r1, Math.sin(a + 0.55) * r1 * 0.85);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  // Asteroid variant (spinning rock) - uses circular collision
-  private drawAsteroidBlock(b: Block): void {
-    const ctx = this.ctx;
-    const seed = b.seed;
-    const time = performance.now() * 0.001;
-
-    const frac = (v: number): number => v - Math.floor(v);
-    const hash01 = (v: number): number => frac(Math.sin(v) * 43758.5453123);
-    const s1 = hash01(seed * 91.7 + b.x * 0.0031 + b.y * 0.0047);
-    const s2 = hash01(seed * 33.3 + b.x * 0.0019);
-    const s3 = hash01(seed * 17.1 + b.y * 0.0027);
-    const pulse = 0.7 + 0.3 * Math.sin(time * 1.6 + seed * 15.0);
-
-    const cx = b.x;
-    const cy = b.y + b.h * 0.5;
-    const r = Math.min(b.w, b.h) * 0.5;
-    const spin = time * (0.8 + s1 * 0.6);
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(spin);
-
-    // Big outer glow (space crystal/energy)
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 42;
-    ctx.globalAlpha = 0.32 + 0.18 * pulse;
-    ctx.strokeStyle = this.runtimePalette.trail;
-    ctx.lineWidth = Math.max(8, Math.floor(r * 0.4));
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.15, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    ctx.shadowBlur = 24;
-    ctx.globalAlpha = 0.22 + 0.12 * pulse;
-    ctx.strokeStyle = "rgba(255,255,255,0.24)";
-    ctx.lineWidth = Math.max(5, Math.floor(r * 0.25));
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 1.08, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-
-    // Rock surface with craters and bumps (irregular shape) - space-themed colors
-    ctx.save();
-    ctx.globalCompositeOperation = "source-over";
-    const rockGrad = ctx.createRadialGradient(0, 0, r * 0.2, 0, 0, r);
-    rockGrad.addColorStop(0.0, "rgba(180,220,255,0.85)");
-    rockGrad.addColorStop(0.4, "rgba(100,160,220,0.75)");
-    rockGrad.addColorStop(0.8, "rgba(40,80,140,0.85)");
-    rockGrad.addColorStop(1.0, "rgba(20,40,80,0.95)");
-    ctx.fillStyle = rockGrad;
-    ctx.strokeStyle = "rgba(200,240,255,0.6)";
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 0;
-
-    // Draw irregular rock shape using multiple points
-    ctx.beginPath();
-    const points = 12;
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const variance = 0.75 + 0.25 * hash01(seed * 100 + i * 7.3);
-      const rr = r * variance;
-      const x = Math.cos(angle) * rr;
-      const y = Math.sin(angle) * rr;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Add craters and surface details (darker spots)
-    ctx.globalCompositeOperation = "multiply";
-    for (let i = 0; i < 4; i++) {
-      const ca = (i / 4) * Math.PI * 2 + s2 * 2.0;
-      const cr = r * (0.15 + 0.15 * hash01(seed * 200 + i * 11.7));
-      const cx2 = Math.cos(ca) * r * (0.3 + 0.3 * hash01(seed * 300 + i * 13.1));
-      const cy2 = Math.sin(ca) * r * (0.3 + 0.3 * hash01(seed * 400 + i * 17.3));
-      ctx.fillStyle = "rgba(10,30,60,0.5)";
-      ctx.beginPath();
-      ctx.arc(cx2, cy2, cr, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Glowing highlight edges
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 16;
-    ctx.strokeStyle = "rgba(200,240,255,0.5)";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const variance = 0.75 + 0.25 * hash01(seed * 100 + i * 7.3);
-      const rr = r * variance;
-      const x = Math.cos(angle) * rr;
-      const y = Math.sin(angle) * rr;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.stroke();
-    ctx.restore();
-
-    // Inner glow core
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 20;
-    ctx.globalAlpha = 0.4 + 0.3 * pulse;
-    const coreGrad = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r * 0.6);
-    coreGrad.addColorStop(0.0, "rgba(255,255,255,0.3)");
-    coreGrad.addColorStop(0.5, this.runtimePalette.trail);
-    coreGrad.addColorStop(1.0, "rgba(0,0,0,0)");
-    ctx.fillStyle = coreGrad;
-    ctx.beginPath();
-    ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Orbiting crystal fragments (glowing particles)
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    ctx.shadowColor = this.runtimePalette.waveGlow;
-    ctx.shadowBlur = 10;
-    for (let i = 0; i < 6; i++) {
-      const h = hash01(seed * 50.0 + i * 9.1);
-      const a = spin * 0.8 + (i / 6) * Math.PI * 2 + seed * 3.0;
-      const rr = r * (1.05 + h * 0.3);
-      const sx = Math.cos(a) * rr;
-      const sy = Math.sin(a) * rr;
-      const s = 1 + Math.floor(h * 2);
-      ctx.globalAlpha = 0.3 + 0.4 * pulse;
-      ctx.fillStyle = i % 2 === 0 ? "rgba(255,255,255,0.9)" : this.runtimePalette.trail;
-      ctx.fillRect(Math.round(sx - s * 0.5), Math.round(sy - s * 0.5), s, s);
-    }
-    ctx.restore();
-
-    ctx.restore();
-  }
-
   private drawSpikes(spikes: SpikeTri[]): void {
     const ctx = this.ctx;
     ctx.save();
@@ -3213,8 +2735,6 @@ class WaveModeGame {
 
   private drawWave(): void {
     const ctx = this.ctx;
-    const rScrollX = this.renderScrollX();
-    const rCamY = this.renderCamY();
 
     // trail (diagonal zig-zag, 45° segments relative to scrolling level)
     if (this.trail.length > 1) {
@@ -3233,8 +2753,8 @@ class WaveModeGame {
       ctx.beginPath();
       for (let i = 0; i < this.trail.length; i++) {
         const p = this.trail[i];
-        const sx = p.x - rScrollX;
-        const sy = p.y - rCamY;
+        const sx = p.x - this.scrollX;
+        const sy = p.y - this.camY;
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       }
@@ -3246,8 +2766,8 @@ class WaveModeGame {
       ctx.beginPath();
       for (let i = 0; i < this.trail.length; i++) {
         const p = this.trail[i];
-        const sx = p.x - rScrollX;
-        const sy = p.y - rCamY;
+        const sx = p.x - this.scrollX;
+        const sy = p.y - this.camY;
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       }
@@ -3259,8 +2779,7 @@ class WaveModeGame {
     if ((this.state === "DYING" || this.state === "GAME_OVER") && this.deathShards.length > 0) return;
     const size = CONFIG.WAVE_SIZE;
     const x = this.waveX;
-    // Render triangle with snapped camera for crisp pixel-art stability
-    const y = this.waveWorldY - rCamY;
+    const y = this.waveY;
     ctx.save();
     ctx.translate(x, y);
     // Point forward when sliding on roof/ground, otherwise point at 45° up/down
@@ -3319,3 +2838,4 @@ class WaveModeGame {
 // Boot
 console.log("[WaveModeGame] Boot");
 new WaveModeGame();
+

@@ -135,7 +135,7 @@ your-game-name/
 ```
 
 **Key rules:**
-- All logic in `src/main.ts` (TypeScript only)
+- All logic in `src/main.ts` (TypeScript only) (could be split into different reusable modules)
 - All CSS in `<style>` tags in `index.html`
 - No JavaScript in `index.html`
 
@@ -283,12 +283,13 @@ PLEASE TEST ON THE OASIZ APP FOR PERFORMANCE, TESTING ON WEBBROWSER OR SIMULATOR
 
 Create a `.env` file in the root directory (or set these in your shell):
 
-Easiest way is to just copy env.example directly and change the email to your account email (the email that is used to create your account)
+Easiest way is to just copy env.example directly (copy them exactly) and change the email to your account email (the email that is used to create your account)
 
 ```bash
 # Required - get these from the Oasiz team
 OASIZ_UPLOAD_TOKEN=your_upload_token (copy from env.example)
 OASIZ_EMAIL=your-registered-email@example.com
+OASIZ_API_URL= copy from env.example 
 
 # Optional - defaults to production API
 # OASIZ_API_URL=http://localhost:3001/api/upload/game
