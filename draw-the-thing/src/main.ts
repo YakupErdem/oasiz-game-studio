@@ -1,6 +1,14 @@
 import { insertCoin, getRoomCode, myPlayer } from "playroomkit";
 import { GameManager } from "./GameManager";
-import { oasiz } from "@oasiz/sdk";
+
+// Check for injected data from webview/parent window
+declare global {
+  interface Window {
+    __ROOM_CODE__?: string;
+    __PLAYER_NAME__?: string;
+    __PLAYER_AVATAR__?: string;
+  }
+}
 
 // Generate a random 4-character room code
 function generateRoomCode(): string {
@@ -38,12 +46,16 @@ let gameManager: GameManager | null = null;
 
 // Trigger haptic helper
 function triggerHaptic(type: string): void {
-  oasiz.triggerHaptic(type as any);
+  if (typeof (window as any).triggerHaptic === "function") {
+    (window as any).triggerHaptic(type);
+  }
 }
 
 // Share room code with parent (for friends to join)
 function shareRoomCode(roomCode: string | null): void {
-  oasiz.shareRoomCode(roomCode);
+  if (typeof (window as any).shareRoomCode === "function") {
+    (window as any).shareRoomCode(roomCode);
+  }
 }
 
 // Update loading text
@@ -236,9 +248,9 @@ async function init(): Promise<void> {
   setupStartScreen();
 
   // Check for injected room code from webview
-  if (oasiz.roomCode) {
-    console.log("[Main] Using injected room code:", oasiz.roomCode);
-    await connectToRoom(oasiz.roomCode);
+  if (window.__ROOM_CODE__) {
+    console.log("[Main] Using injected room code:", window.__ROOM_CODE__);
+    await connectToRoom(window.__ROOM_CODE__);
     return;
   }
 

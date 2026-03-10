@@ -179,8 +179,7 @@ export default class BallSelect extends Phaser.Scene {
         }
 
         // --- BACK BUTTON ---
-        const isMobile = window.matchMedia('(pointer: coarse)').matches;
-        const backBtn = this.add.text(40, isMobile ? 120 : 60, "< BACK", {
+        const backBtn = this.add.text(40, 40, "< BACK", {
             fontSize: '20px', fontFamily: '"Press Start 2P"', color: '#ffffff'
         }).setInteractive({ useHandCursor: true });
         backBtn.setScrollFactor(0); // Keep fixed on screen

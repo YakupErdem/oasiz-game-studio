@@ -146,7 +146,7 @@
         @media (pointer: coarse) {
             #screen-container {
                 margin-top: 100px;
-                max-height: 68%;
+                max-height: 60%;
                 max-width: 440px;
             }
         }
@@ -267,20 +267,17 @@
 
         @media (pointer: coarse) {
             #hud {
-                max-width: 360px;
-                padding: 8px 6px;
-                margin-top: 2px;
+                max-width: 400px;
             }
             .hud-item {
-                min-width: 95px;
-                padding: 8px 14px;
+                min-width: 130px;
+                padding: 14px 22px;
             }
             .hud-value {
-                font-size: 18px;
+                font-size: 28px;
             }
             .hud-label {
-                font-size: 8px;
-                margin-bottom: 6px;
+                font-size: 11px;
             }
         }
 
@@ -330,8 +327,8 @@
         @media (pointer: coarse) {
             #controls {
                 max-width: 420px;
-                padding: 8px 8px;
-                margin-top: -20px;
+                padding: 16px 8px;
+                margin-top: -10px;
             }
         }
 
@@ -408,16 +405,16 @@
 
         @media (pointer: coarse) {
             #boost-btn {
-                width: 100px;
-                height: 100px;
-                border-width: 5px;
+                width: 140px;
+                height: 140px;
+                border-width: 7px;
             }
             #boost-btn .btn-icon {
-                width: 42px;
-                height: 42px;
+                width: 60px;
+                height: 60px;
             }
             #boost-btn .btn-label {
-                font-size: 0.5rem;
+                font-size: 0.7rem;
             }
         }
 
@@ -803,7 +800,7 @@
 
         @media (pointer: coarse) {
             .start-action {
-                bottom: 40px;
+                bottom: 140px;
             }
         }
 
@@ -1016,7 +1013,9 @@
             min-width: 240px;
         }
 
-        /* .settings-modal.hidden is no longer needed - overlay handles visibility */
+        .settings-modal.hidden {
+            display: none;
+        }
 
         .settings-title {
             font-size: 0.7rem;
@@ -1277,6 +1276,11 @@
             <div id="gameOverScreen" class="overlay hidden">
                 <div class="overlay-content">
                     <h2 class="game-title">GAME OVER</h2>
+                    
+                    <div class="baskets-made-container">
+                        <p class="baskets-made-label">BASKETS</p>
+                        <div class="baskets-made" id="basketsMade">0</div>
+                    </div>
 
                     <div class="rank-container">
                         <p class="score-label">RANK</p>
@@ -1301,9 +1305,8 @@
                 </div>
             </div>
 
-            <!-- Settings Screen -->
-            <div id="settingsScreen" class="overlay hidden">
-              <div id="settingsModal" class="settings-modal">
+            <!-- Settings Modal -->
+            <div id="settingsModal" class="settings-modal hidden">
                 <h3 class="settings-title">SETTINGS</h3>
                 <div class="settings-row">
                     <span class="settings-label">MUSIC</span>
@@ -1334,7 +1337,6 @@
                     </button>
                 </div>
                 <button class="btn" id="settingsClose">DONE</button>
-              </div>
             </div>
         </div>
 

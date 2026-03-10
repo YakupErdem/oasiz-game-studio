@@ -19,7 +19,7 @@ export default class MapSelect extends Phaser.Scene {
         let currentTime = this.registry.get('time') as TimeType;
 
         // --- PREVIEW BACKGROUND ---
-        const terrainGen = new TerrainGenerator(this, null);
+        const terrainGen = new TerrainGenerator(this);
         let currentTerrainPreview: any = null;
 
         // Background Graphics for sky and mountains (separate from terrain)
@@ -148,8 +148,7 @@ export default class MapSelect extends Phaser.Scene {
         });
 
         // --- BACK BUTTON ---
-        const isMobile = window.matchMedia('(pointer: coarse)').matches;
-        const backBtn = this.add.text(40, isMobile ? 120 : 60, "< BACK", {
+        const backBtn = this.add.text(40, 40, "< BACK", {
             fontSize: '20px', fontFamily: '"Press Start 2P"', color: '#ffffff', stroke: '#000000', strokeThickness: 4
         }).setInteractive({ useHandCursor: true });
 

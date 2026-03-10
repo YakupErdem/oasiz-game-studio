@@ -1,5 +1,3 @@
-import { oasiz } from "@oasiz/sdk";
-
 export function initUI() {
     const settings = {
         music: localStorage.getItem('setting_music') !== 'false',
@@ -80,13 +78,18 @@ export function showGameOver(score: number) {
     if (scoreEl) scoreEl.innerText = score.toString();
     if (modal) modal.classList.remove('hidden');
 
-    oasiz.submitScore(score);
+    if (typeof (window as any).submitScore === "function") {
+        (window as any).submitScore(score);
+    }
 }
 
 export function triggerHaptic(type: 'light' | 'medium' | 'heavy' | 'success' | 'error') {
     const haptics = localStorage.getItem('setting_haptics') !== 'false';
     if (!haptics) return;
-    oasiz.triggerHaptic(type);
+
+    if (typeof (window as any).triggerHaptic === "function") {
+        (window as any).triggerHaptic(type);
+    }
 }
 
 export function getSettings() {

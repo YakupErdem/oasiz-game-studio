@@ -7,7 +7,6 @@ import {
   getRoomCode,
   PlayerState,
 } from "playroomkit";
-import { oasiz } from "@oasiz/sdk";
 import * as Tone from "tone";
 import { WORDS } from "./words";
 import { DrawingCanvas } from "./DrawingCanvas";
@@ -257,8 +256,8 @@ export class GameManager {
     });
 
     // Load injected name if available
-    if (oasiz.playerName) {
-      this.playerNameInput.value = oasiz.playerName;
+    if (window.__PLAYER_NAME__) {
+      this.playerNameInput.value = window.__PLAYER_NAME__;
     }
 
     // Start game button (host only)
@@ -332,7 +331,9 @@ export class GameManager {
         toggleHaptics.classList.toggle("active", this.settings.haptics);
         this.saveSettings();
         // Always trigger this one so user can feel the toggle
-        oasiz.triggerHaptic("light");
+        if (typeof (window as any).triggerHaptic === "function") {
+          (window as any).triggerHaptic("light");
+        }
       });
     }
   }
@@ -409,9 +410,9 @@ export class GameManager {
 
     // Set name from profile or injected
     const profile = myPlayer()?.getProfile();
-    if (oasiz.playerName) {
-      this.playerNameInput.value = oasiz.playerName;
-      myPlayer()?.setState("customName", oasiz.playerName, true);
+    if (window.__PLAYER_NAME__) {
+      this.playerNameInput.value = window.__PLAYER_NAME__;
+      myPlayer()?.setState("customName", window.__PLAYER_NAME__, true);
     } else if (profile?.name) {
       this.playerNameInput.value = profile.name;
       // Also sync the profile name as custom name
@@ -912,14 +913,19 @@ export class GameManager {
   // Platform integration
   private submitScore(score: number): void {
     console.log("[GameManager] Submitting score:", score);
-    oasiz.submitScore(score);
+    if (typeof (window as any).submitScore === "function") {
+      (window as any).submitScore(score);
+    }
   }
 
   public triggerHaptic(
     type: "light" | "medium" | "heavy" | "success" | "error",
   ): void {
-    if (this.settings.haptics) {
-      oasiz.triggerHaptic(type);
+    if (
+      this.settings.haptics &&
+      typeof (window as any).triggerHaptic === "function"
+    ) {
+      (window as any).triggerHaptic(type);
     }
   }
 

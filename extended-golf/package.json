@@ -25,7 +25,6 @@
     },
     "dependencies": {
         "@phaserjs/editor-scripts-base": "^1.0.0",
-        "phaser": "3.80.1",
-        "phaser-box2d": "^1.1.0"
+        "phaser": "3.80.1"
     }
 }

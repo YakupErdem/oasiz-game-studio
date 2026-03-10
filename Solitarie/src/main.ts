@@ -2,7 +2,6 @@ import Phaser from "phaser";
 import Level from "./scenes/Level";
 import Preload from "./scenes/Preload";
 import MainMenu from "./scenes/MainMenu";
-import { initOasiz } from "./platform/oasiz";
 
 class Boot extends Phaser.Scene {
     constructor() {
@@ -41,6 +40,5 @@ window.addEventListener("load", function () {
         }
     });
 
-    initOasiz(game);
     game.scene.start("Boot");
 });

@@ -33,8 +33,8 @@ const CONFIG = {
   BOULDER_GRAVITY: 0.12,
   BOULDER_BOUNCE: 0.82,
   BOULDER_SPAWN_INTERVAL_START: 2800, // Slightly slower start
-  BOULDER_SPAWN_INTERVAL_MIN: 800, // Min interval for late game
-  BOULDER_HEALTH_INCREASE_INTERVAL: 36, // Legacy - health now scales per upgrade
+  BOULDER_SPAWN_INTERVAL_MIN: 1000, // Slower min interval
+  BOULDER_HEALTH_INCREASE_INTERVAL: 36, // Destructions before health increases
 
   // Particles
   PARTICLE_POOL_SIZE: 300,
@@ -163,7 +163,7 @@ class ObjectPool<T> {
   constructor(
     createFn: () => T,
     resetFn: (obj: T) => void,
-    initialSize: number = 0,
+    initialSize: number = 0
   ) {
     this.createFn = createFn;
     this.resetFn = resetFn;
@@ -225,7 +225,7 @@ class AudioManager {
       this.music = new Audio("https://assets.oasiz.ai/audio/tank-song.mp3");
       this.music.loop = true;
       this.music.crossOrigin = "anonymous";
-
+      
       this.musicSource = this.ctx.createMediaElementSource(this.music);
       this.musicSource.connect(this.musicGain);
 
@@ -238,9 +238,7 @@ class AudioManager {
 
   playMusic(): void {
     if (!this.music || !this.settings.music) return;
-    this.music
-      .play()
-      .catch((e) => console.warn("[AudioManager.playMusic] Failed:", e));
+    this.music.play().catch(e => console.warn("[AudioManager.playMusic] Failed:", e));
   }
 
   stopMusic(): void {
@@ -401,7 +399,7 @@ class ParticleSystem {
       (p) => {
         p.life = 0;
       },
-      CONFIG.PARTICLE_POOL_SIZE,
+      CONFIG.PARTICLE_POOL_SIZE
     );
   }
 
@@ -410,7 +408,7 @@ class ParticleSystem {
     y: number,
     color: string,
     count: number,
-    type: Particle["type"] = "spark",
+    type: Particle["type"] = "spark"
   ): void {
     for (let i = 0; i < count; i++) {
       const p = this.pool.acquire();
@@ -500,7 +498,7 @@ class FloatingTextSystem {
     y: number,
     text: string,
     color: string = "#fff",
-    size: number = 20,
+    size: number = 20
   ): void {
     this.texts.push({ x, y, text, life: 1, color, size });
   }
@@ -546,367 +544,37 @@ interface SkillNode {
   desc: string;
   requires: string | null; // ID of required skill, null if root
   tree: "fire" | "utility" | "defense";
-  tier: number; // 1 through 7
+  tier: number; // 1, 2, 3, or 4
   sibling: string | null; // Mutually exclusive sibling (choosing one locks the other)
 }
 
 const SKILL_TREE: SkillNode[] = [
-  // ── FIRE TREE (fire rate path vs damage path) ──
-  {
-    id: "f1",
-    name: "Quick Fire",
-    desc: "+15% fire rate",
-    requires: null,
-    tree: "fire",
-    tier: 1,
-    sibling: null,
-  },
-  {
-    id: "f2a",
-    name: "Rapid Fire",
-    desc: "+15% fire rate",
-    requires: "f1",
-    tree: "fire",
-    tier: 2,
-    sibling: "f2b",
-  },
-  {
-    id: "f2b",
-    name: "Heavy Rounds",
-    desc: "2 damage per bullet",
-    requires: "f1",
-    tree: "fire",
-    tier: 2,
-    sibling: "f2a",
-  },
-  {
-    id: "f3a",
-    name: "Gatling",
-    desc: "+15% fire rate",
-    requires: "f2a",
-    tree: "fire",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "f3b",
-    name: "Hardened Tips",
-    desc: "3 damage per bullet",
-    requires: "f2b",
-    tree: "fire",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "f4a",
-    name: "Overclock",
-    desc: "+10% fire rate",
-    requires: "f3a",
-    tree: "fire",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "f4b",
-    name: "Armor Piercing",
-    desc: "4 damage per bullet",
-    requires: "f3b",
-    tree: "fire",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "f5a",
-    name: "Turbo Feed",
-    desc: "+10% fire rate",
-    requires: "f4a",
-    tree: "fire",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "f5b",
-    name: "Tungsten Core",
-    desc: "5 damage per bullet",
-    requires: "f4b",
-    tree: "fire",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "f6a",
-    name: "Bullet Storm",
-    desc: "+10% fire rate",
-    requires: "f5a",
-    tree: "fire",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "f6b",
-    name: "Explosive Rounds",
-    desc: "Explosions on hit",
-    requires: "f5b",
-    tree: "fire",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "f7a",
-    name: "Chain Lightning",
-    desc: "+5% fire rate (max)",
-    requires: "f6a",
-    tree: "fire",
-    tier: 7,
-    sibling: null,
-  },
-  {
-    id: "f7b",
-    name: "Mega Blast",
-    desc: "Bigger explosions",
-    requires: "f6b",
-    tree: "fire",
-    tier: 7,
-    sibling: null,
-  },
+  // FIRE RATE TREE - Linear choices at each tier
+  { id: "f1", name: "Quick Fire", desc: "+25% fire rate", requires: null, tree: "fire", tier: 1, sibling: null },
+  { id: "f2a", name: "Rapid Fire", desc: "+50% fire rate", requires: "f1", tree: "fire", tier: 2, sibling: "f2b" },
+  { id: "f2b", name: "Heavy Rounds", desc: "2 damage per bullet", requires: "f1", tree: "fire", tier: 2, sibling: "f2a" },
+  { id: "f3a", name: "Gatling", desc: "+80% fire rate", requires: "f2a", tree: "fire", tier: 3, sibling: null },
+  { id: "f3b", name: "Armor Piercing", desc: "3 damage per bullet", requires: "f2b", tree: "fire", tier: 3, sibling: null },
+  { id: "f4a", name: "Bullet Storm", desc: "+100% fire rate", requires: "f3a", tree: "fire", tier: 4, sibling: null },
+  { id: "f4b", name: "Explosive Rounds", desc: "Explosions on hit", requires: "f3b", tree: "fire", tier: 4, sibling: null },
 
-  // ── UTILITY TREE (spread path vs pierce path) ──
-  {
-    id: "u1",
-    name: "Double Barrel",
-    desc: "Fire 2 bullets",
-    requires: null,
-    tree: "utility",
-    tier: 1,
-    sibling: null,
-  },
-  {
-    id: "u2a",
-    name: "Spread Shot",
-    desc: "Fire 3 bullets",
-    requires: "u1",
-    tree: "utility",
-    tier: 2,
-    sibling: "u2b",
-  },
-  {
-    id: "u2b",
-    name: "Pierce Shot",
-    desc: "Pierce 1 boulder",
-    requires: "u1",
-    tree: "utility",
-    tier: 2,
-    sibling: "u2a",
-  },
-  {
-    id: "u3a",
-    name: "Triple Threat",
-    desc: "Fire 4 bullets",
-    requires: "u2a",
-    tree: "utility",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "u3b",
-    name: "Deep Pierce",
-    desc: "Pierce 2 boulders",
-    requires: "u2b",
-    tree: "utility",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "u4a",
-    name: "Barrage",
-    desc: "Fire 5 bullets",
-    requires: "u3a",
-    tree: "utility",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "u4b",
-    name: "Skewer",
-    desc: "Pierce 3 boulders",
-    requires: "u3b",
-    tree: "utility",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "u5a",
-    name: "Salvo",
-    desc: "Fire 6 bullets",
-    requires: "u4a",
-    tree: "utility",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "u5b",
-    name: "Full Pierce",
-    desc: "Pierce all boulders",
-    requires: "u4b",
-    tree: "utility",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "u6a",
-    name: "Hailstorm",
-    desc: "Fire 7 bullets, wider",
-    requires: "u5a",
-    tree: "utility",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "u6b",
-    name: "Bore Through",
-    desc: "+2 pierce damage",
-    requires: "u5b",
-    tree: "utility",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "u7a",
-    name: "Wall of Lead",
-    desc: "Fire 8 bullets, 60deg",
-    requires: "u6a",
-    tree: "utility",
-    tier: 7,
-    sibling: null,
-  },
-  {
-    id: "u7b",
-    name: "Rail Gun",
-    desc: "Pierce all, +3 damage",
-    requires: "u6b",
-    tree: "utility",
-    tier: 7,
-    sibling: null,
-  },
+  // UTILITY TREE
+  { id: "u1", name: "Double Barrel", desc: "Fire 2 bullets", requires: null, tree: "utility", tier: 1, sibling: null },
+  { id: "u2a", name: "Spread Shot", desc: "Fire 3 bullets, wide", requires: "u1", tree: "utility", tier: 2, sibling: "u2b" },
+  { id: "u2b", name: "Pierce Shot", desc: "Pierce 1 boulder", requires: "u1", tree: "utility", tier: 2, sibling: "u2a" },
+  { id: "u3a", name: "Barrage", desc: "Fire 5 bullets", requires: "u2a", tree: "utility", tier: 3, sibling: null },
+  { id: "u3b", name: "Full Pierce", desc: "Pierce all boulders", requires: "u2b", tree: "utility", tier: 3, sibling: null },
+  { id: "u4a", name: "Wall of Lead", desc: "Fire 8 bullets, 60deg", requires: "u3a", tree: "utility", tier: 4, sibling: null },
+  { id: "u4b", name: "Rail Gun", desc: "Pierce all, 5 damage", requires: "u3b", tree: "utility", tier: 4, sibling: null },
 
-  // ── DEFENSE TREE (regen path vs kill-repair path) ──
-  {
-    id: "d1",
-    name: "Reinforced Hull",
-    desc: "Survive 1 hit",
-    requires: null,
-    tree: "defense",
-    tier: 1,
-    sibling: null,
-  },
-  {
-    id: "d2a",
-    name: "Shield Regen",
-    desc: "Recharge after 12s",
-    requires: "d1",
-    tree: "defense",
-    tier: 2,
-    sibling: "d2b",
-  },
-  {
-    id: "d2b",
-    name: "Kill Repair",
-    desc: "6 kills restore shield",
-    requires: "d1",
-    tree: "defense",
-    tier: 2,
-    sibling: "d2a",
-  },
-  {
-    id: "d3a",
-    name: "Quick Regen",
-    desc: "Recharge after 10s",
-    requires: "d2a",
-    tree: "defense",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "d3b",
-    name: "Fast Repair",
-    desc: "5 kills restore",
-    requires: "d2b",
-    tree: "defense",
-    tier: 3,
-    sibling: null,
-  },
-  {
-    id: "d4a",
-    name: "Energy Shield",
-    desc: "Absorb 2 hits",
-    requires: "d3a",
-    tree: "defense",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "d4b",
-    name: "Efficient Repair",
-    desc: "4 kills restore",
-    requires: "d3b",
-    tree: "defense",
-    tier: 4,
-    sibling: null,
-  },
-  {
-    id: "d5a",
-    name: "Rapid Regen",
-    desc: "Recharge after 8s",
-    requires: "d4a",
-    tree: "defense",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "d5b",
-    name: "Swift Repair",
-    desc: "3 kills restore",
-    requires: "d4b",
-    tree: "defense",
-    tier: 5,
-    sibling: null,
-  },
-  {
-    id: "d6a",
-    name: "Heavy Shield",
-    desc: "Absorb 3 hits",
-    requires: "d5a",
-    tree: "defense",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "d6b",
-    name: "Instant Repair",
-    desc: "2 kills restore",
-    requires: "d5b",
-    tree: "defense",
-    tier: 6,
-    sibling: null,
-  },
-  {
-    id: "d7a",
-    name: "Fortress",
-    desc: "Absorb 4 hits",
-    requires: "d6a",
-    tree: "defense",
-    tier: 7,
-    sibling: null,
-  },
-  {
-    id: "d7b",
-    name: "Phoenix",
-    desc: "Revive once per game",
-    requires: "d6b",
-    tree: "defense",
-    tier: 7,
-    sibling: null,
-  },
+  // DEFENSE TREE
+  { id: "d1", name: "Reinforced Hull", desc: "Survive 1 hit", requires: null, tree: "defense", tier: 1, sibling: null },
+  { id: "d2a", name: "Shield Regen", desc: "Recharge after 10s", requires: "d1", tree: "defense", tier: 2, sibling: "d2b" },
+  { id: "d2b", name: "Kill Repair", desc: "5 kills restore shield", requires: "d1", tree: "defense", tier: 2, sibling: "d2a" },
+  { id: "d3a", name: "Energy Shield", desc: "Absorb 2 hits", requires: "d2a", tree: "defense", tier: 3, sibling: null },
+  { id: "d3b", name: "Fast Repair", desc: "3 kills restore", requires: "d2b", tree: "defense", tier: 3, sibling: null },
+  { id: "d4a", name: "Fortress", desc: "Absorb 3 hits", requires: "d3a", tree: "defense", tier: 4, sibling: null },
+  { id: "d4b", name: "Phoenix", desc: "Revive once per game", requires: "d3b", tree: "defense", tier: 4, sibling: null },
 ];
 
 // Helper to get skill by ID
@@ -915,10 +583,7 @@ function getSkill(id: string): SkillNode | undefined {
 }
 
 // Get available upgrades (ones that can be purchased right now)
-function getAvailableUpgrades(
-  owned: Set<string>,
-  locked: Set<string>,
-): SkillNode[] {
+function getAvailableUpgrades(owned: Set<string>, locked: Set<string>): SkillNode[] {
   return SKILL_TREE.filter((skill) => {
     // Already owned
     if (owned.has(skill.id)) return false;
@@ -995,7 +660,7 @@ class CannonBlasterGame {
   ownedUpgrades: Set<string> = new Set();
   lockedBranches: Set<string> = new Set(); // Branches locked by sibling choices
   upgradePoints: number = 0; // Points available to spend
-
+  
   // Defense/Shield state
   shieldHits: number = 0;
   maxShieldHits: number = 0;
@@ -1029,7 +694,7 @@ class CannonBlasterGame {
   // Timing
   lastTime: number = 0;
   boulderIdCounter: number = 0;
-
+  
   // Track if player selected an upgrade this round
   hasSelectedUpgrade: boolean = false;
   selectedNodeId: string | null = null; // Currently selected for preview
@@ -1049,14 +714,7 @@ class CannonBlasterGame {
   mountains: { x: number; w: number; h: number }[] = [];
   distantBase: { x: number; w: number; h: number }[] = [];
   stars: { x: number; y: number; s: number; o: number }[] = [];
-  shootingStars: {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    life: number;
-    len: number;
-  }[] = [];
+  shootingStars: { x: number; y: number; vx: number; vy: number; life: number; len: number }[] = [];
   nebulae: { x: number; y: number; r: number; c: string }[] = [];
   lastShootingStarTime: number = 0;
 
@@ -1087,7 +745,7 @@ class CannonBlasterGame {
 
     // Initialize demo canvas
     this.demoCanvas = document.getElementById(
-      "demoCanvas",
+      "demoCanvas"
     ) as HTMLCanvasElement;
     if (this.demoCanvas) {
       this.demoCtx = this.demoCanvas.getContext("2d");
@@ -1109,7 +767,7 @@ class CannonBlasterGame {
       (b) => {
         b.active = false;
       },
-      CONFIG.BULLET_POOL_SIZE,
+      CONFIG.BULLET_POOL_SIZE
     );
 
     this.boulderPool = new ObjectPool<Boulder>(
@@ -1132,7 +790,7 @@ class CannonBlasterGame {
         b.active = false;
         b.hasHitGround = false;
       },
-      CONFIG.BOULDER_POOL_SIZE,
+      CONFIG.BOULDER_POOL_SIZE
     );
 
     // Setup events
@@ -1171,15 +829,11 @@ class CannonBlasterGame {
       }
     });
 
-    window.addEventListener(
-      "touchmove",
-      (e) => {
-        if (this.isDragging && this.gameState === "PLAYING") {
-          this.touchCurrentX = this.getRelativeX(e.touches[0].clientX);
-        }
-      },
-      { passive: false },
-    );
+    window.addEventListener("touchmove", (e) => {
+      if (this.isDragging && this.gameState === "PLAYING") {
+        this.touchCurrentX = this.getRelativeX(e.touches[0].clientX);
+      }
+    }, { passive: false });
 
     window.addEventListener("touchend", () => {
       this.isDragging = false;
@@ -1281,10 +935,10 @@ class CannonBlasterGame {
       el.classList.toggle("active", this.settings[settingKey]);
       localStorage.setItem(
         "cannonBlaster_" + settingKey,
-        this.settings[settingKey].toString(),
+        this.settings[settingKey].toString()
       );
       this.audio.triggerHaptic("light");
-
+      
       // Update audio music state if it was the music setting
       if (settingKey === "music") {
         if (this.settings.music && this.gameState === "PLAYING") {
@@ -1315,34 +969,16 @@ class CannonBlasterGame {
       this.destroyedSinceUpgrade++;
 
       this.audio.playDestroy(boulder.size);
-      this.audio.triggerHaptic(
-        airborneBonus
-          ? "success"
-          : boulder.size === "large"
-            ? "heavy"
-            : "medium",
-      );
+      this.audio.triggerHaptic(airborneBonus ? "success" : boulder.size === "large" ? "heavy" : "medium");
 
       // Particles
       this.particles.emit(boulder.x, boulder.y, "#8a7a6a", 10, "debris");
       this.particles.emit(boulder.x, boulder.y, "#ffa500", 6, "explosion");
 
       // Floating text
-      this.floatingText.add(
-        boulder.x,
-        boulder.y,
-        "+" + finalPoints,
-        airborneBonus ? "#44ff88" : "#ffd54f",
-        airborneBonus ? 28 : 22,
-      );
+      this.floatingText.add(boulder.x, boulder.y, "+" + finalPoints, airborneBonus ? "#44ff88" : "#ffd54f", airborneBonus ? 28 : 22);
       if (airborneBonus) {
-        this.floatingText.add(
-          boulder.x,
-          boulder.y - 30,
-          "AIRBORNE BONUS!",
-          "#44ff88",
-          14,
-        );
+        this.floatingText.add(boulder.x, boulder.y - 30, "AIRBORNE BONUS!", "#44ff88", 14);
       }
 
       // Screen shake
@@ -1357,25 +993,17 @@ class CannonBlasterGame {
       // Kill-based shield restoration (Emergency Repair path)
       if (this.shieldHits < this.maxShieldHits) {
         this.killsSinceShieldLost++;
-
-        // Kill-repair path: d2b(6) -> d3b(5) -> d4b(4) -> d5b(3) -> d6b(2)
+        
+        // Determine kills needed based on upgrades
         let killsNeeded = 99999;
-        if (this.ownedUpgrades.has("d6b")) killsNeeded = 2;
-        else if (this.ownedUpgrades.has("d5b")) killsNeeded = 3;
-        else if (this.ownedUpgrades.has("d4b")) killsNeeded = 4;
-        else if (this.ownedUpgrades.has("d3b")) killsNeeded = 5;
-        else if (this.ownedUpgrades.has("d2b")) killsNeeded = 6;
+        if (this.ownedUpgrades.has("d4c")) killsNeeded = 5; // Regeneration
+        else if (this.ownedUpgrades.has("d3c")) killsNeeded = 8; // Auto Repair
+        else if (this.ownedUpgrades.has("d2b")) killsNeeded = 5; // Emergency Repair (base)
 
         if (this.killsSinceShieldLost >= killsNeeded) {
           this.shieldHits = this.maxShieldHits;
           this.killsSinceShieldLost = 0;
-          this.floatingText.add(
-            this.cannonX,
-            this.groundY - 100,
-            "SHIELD RESTORED",
-            "#44ff88",
-            18,
-          );
+          this.floatingText.add(this.cannonX, this.groundY - 100, "SHIELD RESTORED", "#44ff88", 18);
           this.audio.triggerHaptic("success");
         }
       }
@@ -1384,22 +1012,12 @@ class CannonBlasterGame {
       this.updateProgressBar();
       const needed = this.getDestructionsNeededForNextUpgrade();
       if (this.destroyedSinceUpgrade >= needed) {
-        const available = getAvailableUpgrades(
-          this.ownedUpgrades,
-          this.lockedBranches,
+        console.log(
+          "[Game] Triggering upgrade after",
+          this.destroyedSinceUpgrade,
+          "destructions (needed " + needed + ")"
         );
-        if (available.length === 0) {
-          console.log("[Game] No upgrades available, skipping upgrade screen");
-          this.destroyedSinceUpgrade = 0;
-          this.updateProgressBar();
-        } else {
-          console.log(
-            "[Game] Triggering upgrade after",
-            this.destroyedSinceUpgrade,
-            "destructions (needed " + needed + ")",
-          );
-          this.showUpgradeScreen();
-        }
+        this.showUpgradeScreen();
       }
     });
 
@@ -1413,7 +1031,7 @@ class CannonBlasterGame {
 
     this.eventBus.on("PLAYER_HIT", () => {
       console.log("[Event] PLAYER_HIT");
-
+      
       // Check invincibility
       if (this.invincibilityTimer > 0) {
         console.log("[Event] Player invincible, ignoring hit");
@@ -1427,29 +1045,22 @@ class CannonBlasterGame {
         console.log("[Event] Shield absorbed hit, remaining:", this.shieldHits);
         this.audio.triggerHaptic("medium");
         this.triggerScreenShake(0.4);
-        this.floatingText.add(
-          this.cannonX,
-          this.groundY - 80,
-          "SHIELD HIT",
-          "#ffaa00",
-          16,
-        );
-
+        this.floatingText.add(this.cannonX, this.groundY - 80, "SHIELD HIT", "#ffaa00", 16);
+        
+        // Second Wind - longer invincibility when shield breaks
+        if (this.shieldHits === 0 && this.ownedUpgrades.has("d3d")) {
+          this.invincibilityTimer = 2000; // 2 seconds
+          this.floatingText.add(this.cannonX, this.groundY - 100, "SECOND WIND!", "#44ff88", 20);
+        }
         return;
       }
 
       // Phoenix Protocol - revive once
-      if (!this.hasRevived && this.ownedUpgrades.has("d7b")) {
+      if (!this.hasRevived && this.ownedUpgrades.has("d4d")) {
         this.hasRevived = true;
         this.shieldHits = this.maxShieldHits;
         this.invincibilityTimer = 3000;
-        this.floatingText.add(
-          this.cannonX,
-          this.groundY - 100,
-          "PHOENIX PROTOCOL!",
-          "#ff4444",
-          24,
-        );
+        this.floatingText.add(this.cannonX, this.groundY - 100, "PHOENIX PROTOCOL!", "#ff4444", 24);
         this.audio.triggerHaptic("success");
         this.triggerScreenShake(0.8);
         return;
@@ -1490,7 +1101,7 @@ class CannonBlasterGame {
     this.audio.init();
     this.audio.playMusic();
     this.gameState = "PLAYING";
-
+    
     // Reset state
     this.score = 0;
     this.totalDestroyed = 0;
@@ -1498,14 +1109,14 @@ class CannonBlasterGame {
     this.upgradesEarned = 0;
     this.fireTimer = 0;
     this.spawnTimer = 0;
-
+    
     // Reset skill tree
     this.ownedUpgrades = new Set();
     this.lockedBranches = new Set();
     this.upgradePoints = 0;
     this.hasSelectedUpgrade = false;
     this.selectedNodeId = null;
-
+    
     // Reset defense state
     this.shieldHits = 0;
     this.maxShieldHits = 0;
@@ -1569,12 +1180,7 @@ class CannonBlasterGame {
   }
 
   gameOver(): void {
-    console.log(
-      "[gameOver] Score:",
-      this.score,
-      "Destroyed:",
-      this.totalDestroyed,
-    );
+    console.log("[gameOver] Score:", this.score, "Destroyed:", this.totalDestroyed);
     this.gameState = "GAME_OVER";
 
     this.audio.stopMusic();
@@ -1587,7 +1193,7 @@ class CannonBlasterGame {
         .submitScore === "function"
     ) {
       (window as unknown as { submitScore: (s: number) => void }).submitScore(
-        this.score,
+        this.score
       );
       console.log("[gameOver] Score submitted:", this.score);
     }
@@ -1598,21 +1204,13 @@ class CannonBlasterGame {
       this.totalDestroyed.toString();
 
     // Count upgrades per tree
-    const fireCount = SKILL_TREE.filter(
-      (s) => s.tree === "fire" && this.ownedUpgrades.has(s.id),
-    ).length;
-    const utilityCount = SKILL_TREE.filter(
-      (s) => s.tree === "utility" && this.ownedUpgrades.has(s.id),
-    ).length;
-    const defenseCount = SKILL_TREE.filter(
-      (s) => s.tree === "defense" && this.ownedUpgrades.has(s.id),
-    ).length;
+    const fireCount = SKILL_TREE.filter((s) => s.tree === "fire" && this.ownedUpgrades.has(s.id)).length;
+    const utilityCount = SKILL_TREE.filter((s) => s.tree === "utility" && this.ownedUpgrades.has(s.id)).length;
+    const defenseCount = SKILL_TREE.filter((s) => s.tree === "defense" && this.ownedUpgrades.has(s.id)).length;
 
     document.getElementById("summaryRate")!.textContent = fireCount.toString();
-    document.getElementById("summaryPower")!.textContent =
-      utilityCount.toString();
-    document.getElementById("summaryMulti")!.textContent =
-      defenseCount.toString();
+    document.getElementById("summaryPower")!.textContent = utilityCount.toString();
+    document.getElementById("summaryMulti")!.textContent = defenseCount.toString();
 
     // Show screen
     document.getElementById("hud")?.classList.add("hidden");
@@ -1633,21 +1231,6 @@ class CannonBlasterGame {
     // Render the schematic
     this.renderSchematic();
 
-    // Safety net: if no upgrades are purchasable, let the player continue immediately
-    const available = getAvailableUpgrades(
-      this.ownedUpgrades,
-      this.lockedBranches,
-    );
-    if (available.length === 0) {
-      console.log("[showUpgradeScreen] No upgrades available — enabling skip");
-      this.hasSelectedUpgrade = true;
-      const installBtn = document.getElementById("installBtn");
-      if (installBtn) {
-        installBtn.textContent = "All Systems Maxed - Continue";
-        installBtn.classList.add("active");
-      }
-    }
-
     document.getElementById("upgradeScreen")?.classList.remove("hidden");
   }
 
@@ -1659,42 +1242,35 @@ class CannonBlasterGame {
     };
 
     // Clear pillars
-    Object.values(pillars).forEach((p) => {
-      if (p) p.innerHTML = "";
-    });
+    Object.values(pillars).forEach(p => { if (p) p.innerHTML = ""; });
 
     // Group all skills by tree and tier for layout
     const treeSkills: Record<string, Record<number, SkillNode[]>> = {
-      fire: {},
-      utility: {},
-      defense: {},
+      fire: {}, utility: {}, defense: {}
     };
 
-    SKILL_TREE.forEach((skill) => {
-      if (!treeSkills[skill.tree][skill.tier])
-        treeSkills[skill.tree][skill.tier] = [];
+    SKILL_TREE.forEach(skill => {
+      if (!treeSkills[skill.tree][skill.tier]) treeSkills[skill.tree][skill.tier] = [];
       treeSkills[skill.tree][skill.tier].push(skill);
     });
 
     // Render each tree
-    ["fire", "utility", "defense"].forEach((treeName) => {
+    ["fire", "utility", "defense"].forEach(treeName => {
       const pillarEl = pillars[treeName];
       if (!pillarEl) return;
 
-      const tiers = Object.keys(treeSkills[treeName])
-        .map(Number)
-        .sort((a, b) => a - b);
-
-      tiers.forEach((tier) => {
+      const tiers = Object.keys(treeSkills[treeName]).map(Number).sort((a, b) => a - b);
+      
+      tiers.forEach(tier => {
         const skillsInTier = treeSkills[treeName][tier];
         const tierGroup = document.createElement("div");
         tierGroup.className = "branch-group";
 
-        skillsInTier.forEach((skill) => {
+        skillsInTier.forEach(skill => {
           const node = document.createElement("div");
           node.className = "node";
           node.setAttribute("data-id", skill.id);
-
+          
           const icon = document.createElement("div");
           icon.className = "node-icon";
           icon.textContent = skill.tree[0].toUpperCase();
@@ -1707,7 +1283,7 @@ class CannonBlasterGame {
           const isSelected = this.selectedNodeId === skill.id;
 
           // Discovery / Fog of War Logic
-          // Show if: owned, available, locked branch (to show what was missed),
+          // Show if: owned, available, locked branch (to show what was missed), 
           // or if prerequisite is owned (discovery).
           let isFog = true;
           if (isOwned || isLocked || isAvailable) {
@@ -1754,7 +1330,7 @@ class CannonBlasterGame {
     console.log("[previewUpgrade]", skillId);
     this.selectedNodeId = skillId;
     this.audio.triggerHaptic("light");
-
+    
     const skill = getSkill(skillId);
     this.updateDetailsPanel(skill || null);
     this.renderSchematic();
@@ -1770,9 +1346,7 @@ class CannonBlasterGame {
     if (!skill) {
       if (nameEl) nameEl.textContent = "SELECT MODULE";
       if (tierEl) tierEl.textContent = "SYSTEM READY";
-      if (descEl)
-        descEl.textContent =
-          "Select an available module to view technical specifications.";
+      if (descEl) descEl.textContent = "Select an available module to view technical specifications.";
       if (warningEl) warningEl.style.display = "none";
       if (detailsPanel) {
         detailsPanel.style.borderLeftColor = "#5a7a8a";
@@ -1782,31 +1356,22 @@ class CannonBlasterGame {
     }
 
     // Set theme color based on tree
-    const treeColors: Record<string, string> = {
-      fire: "#ffaa00",
-      utility: "#00ccff",
-      defense: "#44ff88",
-    };
+    const treeColors: Record<string, string> = { fire: "#ffaa00", utility: "#00ccff", defense: "#44ff88" };
     if (detailsPanel) {
       detailsPanel.style.borderLeftColor = treeColors[skill.tree];
       detailsPanel.style.setProperty("--p-color", treeColors[skill.tree]);
     }
 
     if (nameEl) nameEl.textContent = skill.name;
-    if (tierEl)
-      tierEl.textContent =
-        "CLASS " + skill.tier + " " + skill.tree.toUpperCase() + " SYSTEM";
-
+    if (tierEl) tierEl.textContent = "CLASS " + skill.tier + " " + skill.tree.toUpperCase() + " SYSTEM";
+    
     // Cleaner, more readable description
     if (descEl) descEl.textContent = skill.desc;
-
+    
     if (warningEl) {
       if (skill.sibling) {
         const sibling = getSkill(skill.sibling);
-        warningEl.textContent =
-          "LOCKOUT WARNING: Installing this will offline " +
-          (sibling?.name || "alternate branch") +
-          ".";
+        warningEl.textContent = "LOCKOUT WARNING: Installing this will offline " + (sibling?.name || "alternate branch") + ".";
         warningEl.style.display = "block";
       } else {
         warningEl.style.display = "none";
@@ -1816,13 +1381,13 @@ class CannonBlasterGame {
 
   installUpgrade(): void {
     if (!this.selectedNodeId || this.hasSelectedUpgrade) return;
-
+    
     const skillId = this.selectedNodeId;
     const skill = getSkill(skillId);
     if (!skill) return;
 
     console.log("[installUpgrade]", skillId);
-
+    
     // Purchase!
     this.ownedUpgrades.add(skillId);
     this.upgradePoints--;
@@ -1844,7 +1409,7 @@ class CannonBlasterGame {
     // Update UI
     this.renderSchematic();
     this.updateUpgradeDots();
-
+    
     // Change button to Continue
     const installBtn = document.getElementById("installBtn");
     if (installBtn) {
@@ -1888,63 +1453,39 @@ class CannonBlasterGame {
 
   applyUpgradeEffects(skillId: string): void {
     console.log("[applyUpgradeEffects]", skillId);
-
-    // Defense shield upgrades need immediate effect
+    
+    // Defense upgrades need immediate effect
     if (skillId === "d1") {
       this.maxShieldHits = 1;
       this.shieldHits = 1;
-    } else if (skillId === "d4a") {
+    } else if (skillId === "d3a") {
       this.maxShieldHits = 2;
       this.shieldHits = 2;
-    } else if (skillId === "d6a") {
+    } else if (skillId === "d4a") {
       this.maxShieldHits = 3;
       this.shieldHits = 3;
-    } else if (skillId === "d7a") {
-      this.maxShieldHits = 4;
-      this.shieldHits = 4;
     }
   }
 
   getDestructionsNeededForNextUpgrade(): number {
     const count = this.upgradesEarned;
     if (count <= 1) return CONFIG.UPGRADE_BASE_COUNT;
-    if (count === 2) return 16;
-    if (count === 3) return 22;
-    if (count === 4) return 30;
-    // Quadratic ramp: each successive upgrade requires significantly more
-    return Math.round(30 + Math.pow(count - 4, 1.5) * 8);
+    if (count === 2) return 14;
+    if (count === 3) return 16;
+    
+    // Ramping up further: +4 for every upgrade after 3
+    return 16 + (count - 3) * 4;
   }
 
   getDifficultyMultiplier(): number {
-    // Upgrade-based scaling (gentler: 20% first, 12% compounding)
-    let mult = 1.0;
-    if (this.upgradesEarned > 0) {
-      mult = 1.2 * Math.pow(1.12, this.upgradesEarned - 1);
-    }
-    // Continuous scaling from total destructions (slower ramp)
-    mult += this.totalDestroyed * 0.003;
-    return mult;
-  }
-
-  getSpawnCountForWave(): number {
-    const u = this.upgradesEarned;
-    const t = this.totalDestroyed;
-    // Extra spawns from sustained play (slower ramp, caps at 40%)
-    const bonusChance = clamp(t / 800, 0, 0.4);
-    const bonus = Math.random() < bonusChance ? 1 : 0;
-
-    let base = 1;
-    if (u < 3) base = 1;
-    else if (u < 6) base = Math.random() < 0.25 ? 2 : 1;
-    else if (u < 9) base = Math.random() < 0.35 ? 2 : 1;
-    else base = Math.random() < 0.3 ? 3 : 2;
-
-    return base + bonus;
+    if (this.upgradesEarned === 0) return 1.0;
+    // Aggressive scaling after the first upgrade: 
+    // 25% jump for the first upgrade, then 15% per subsequent upgrade
+    return 1.25 * Math.pow(1.15, this.upgradesEarned - 1);
   }
 
   updateHUD(): void {
-    document.getElementById("scoreDisplay")!.textContent =
-      this.score.toString();
+    document.getElementById("scoreDisplay")!.textContent = this.score.toString();
     document.getElementById("destroyedDisplay")!.textContent =
       this.totalDestroyed.toString();
   }
@@ -1967,13 +1508,13 @@ class CannonBlasterGame {
     trees.forEach((tree) => {
       const rowEl = document.getElementById(tree + "DotsRow");
       if (!rowEl) return;
-
+      
       // Count owned upgrades in this tree
       const ownedCount = SKILL_TREE.filter(
-        (s) => s.tree === tree && this.ownedUpgrades.has(s.id),
+        (s) => s.tree === tree && this.ownedUpgrades.has(s.id)
       ).length;
       const totalCount = SKILL_TREE.filter((s) => s.tree === tree).length;
-
+      
       // Generate dots
       rowEl.innerHTML = "";
       for (let i = 0; i < Math.min(totalCount, 11); i++) {
@@ -1987,7 +1528,7 @@ class CannonBlasterGame {
   triggerScreenShake(intensity: number): void {
     this.screenShake.intensity = Math.max(
       this.screenShake.intensity,
-      intensity,
+      intensity
     );
   }
 
@@ -2009,18 +1550,14 @@ class CannonBlasterGame {
     if (this.isDragging && this.touchCurrentX !== null) {
       // DIRECT FOLLOW: Use a high-gain P-controller to snap to cursor
       const dx = this.touchCurrentX - this.cannonX;
-
+      
       // Very high gain (20) means it will close 20x the distance in 1 second
       // This makes it feel "glued" to the finger/cursor
-      this.cannonVx = dx * 22;
-
+      this.cannonVx = dx * 22; 
+      
       // Still respect max speed but it's higher now for responsiveness
-      this.cannonVx = clamp(
-        this.cannonVx,
-        -CONFIG.CANNON_MAX_SPEED,
-        CONFIG.CANNON_MAX_SPEED,
-      );
-
+      this.cannonVx = clamp(this.cannonVx, -CONFIG.CANNON_MAX_SPEED, CONFIG.CANNON_MAX_SPEED);
+      
       // Instant snap if very close to prevent micro-jitter
       if (Math.abs(dx) < 2) {
         this.cannonVx = 0;
@@ -2034,11 +1571,7 @@ class CannonBlasterGame {
 
       if (inputDir !== 0) {
         this.cannonVx += inputDir * CONFIG.CANNON_ACCELERATION * dt;
-        this.cannonVx = clamp(
-          this.cannonVx,
-          -CONFIG.CANNON_MAX_SPEED,
-          CONFIG.CANNON_MAX_SPEED,
-        );
+        this.cannonVx = clamp(this.cannonVx, -CONFIG.CANNON_MAX_SPEED, CONFIG.CANNON_MAX_SPEED);
       } else {
         // Friction to slow down naturally when no keys are pressed
         this.cannonVx *= Math.pow(0.001, dt * CONFIG.CANNON_FRICTION);
@@ -2062,104 +1595,71 @@ class CannonBlasterGame {
     this.wheelRotation += (this.cannonVx * dt) / CONFIG.CANNON_WHEEL_RADIUS;
   }
 
+  // Calculate fire rate bonus from skill tree
   getFireRateMultiplier(): number {
     let bonus = 1.0;
-    if (this.ownedUpgrades.has("f1")) bonus -= 0.15;
-    if (this.ownedUpgrades.has("f2a")) bonus -= 0.15;
-    if (this.ownedUpgrades.has("f3a")) bonus -= 0.15;
-    if (this.ownedUpgrades.has("f4a")) bonus -= 0.1;
-    if (this.ownedUpgrades.has("f5a")) bonus -= 0.1;
-    if (this.ownedUpgrades.has("f6a")) bonus -= 0.1;
-    if (this.ownedUpgrades.has("f7a")) bonus -= 0.05;
+    if (this.ownedUpgrades.has("f1")) bonus -= 0.25;
+    if (this.ownedUpgrades.has("f2a")) bonus -= 0.25; // Total -50%
+    if (this.ownedUpgrades.has("f3a")) bonus -= 0.30; // Total -80%
+    if (this.ownedUpgrades.has("f4a")) bonus -= 0.20; // Total -100% (capped at 0.2)
     return Math.max(0.2, bonus);
   }
 
   fireBullets(): void {
-    // Bullet count climbs 1 at a time through utility spread path
+    // Determine bullet count and spread from UTILITY tree
     let bulletCount = 1;
     let spread = 0;
-    if (this.ownedUpgrades.has("u1")) {
-      bulletCount = 2;
-      spread = 8;
-    }
-    if (this.ownedUpgrades.has("u2a")) {
-      bulletCount = 3;
-      spread = 12;
-    }
-    if (this.ownedUpgrades.has("u3a")) {
-      bulletCount = 4;
-      spread = 16;
-    }
-    if (this.ownedUpgrades.has("u4a")) {
-      bulletCount = 5;
-      spread = 22;
-    }
-    if (this.ownedUpgrades.has("u5a")) {
-      bulletCount = 6;
-      spread = 28;
-    }
-    if (this.ownedUpgrades.has("u6a")) {
-      bulletCount = 7;
-      spread = 40;
-    }
-    if (this.ownedUpgrades.has("u7a")) {
-      bulletCount = 8;
-      spread = 60;
-    }
 
-    // Damage climbs 1 at a time through fire damage path
+    if (this.ownedUpgrades.has("u1")) { bulletCount = 2; spread = 8; }
+    if (this.ownedUpgrades.has("u2a")) { bulletCount = 3; spread = 15; }
+    if (this.ownedUpgrades.has("u3a")) { bulletCount = 4; spread = 20; }
+    if (this.ownedUpgrades.has("u3b")) { spread = 30; }
+    if (this.ownedUpgrades.has("u4a")) { bulletCount = 6; spread = 35; }
+    if (this.ownedUpgrades.has("u4b")) { bulletCount = 8; spread = 60; }
+
+    // Determine damage from FIRE tree
     let damage = 1;
     if (this.ownedUpgrades.has("f2b")) damage = 2;
-    if (this.ownedUpgrades.has("f3b")) damage = 3;
-    if (this.ownedUpgrades.has("f4b")) damage = 4;
-    if (this.ownedUpgrades.has("f5b")) damage = 5;
+    if (this.ownedUpgrades.has("f3c")) damage = 3;
+    if (this.ownedUpgrades.has("f4c")) damage = 5;
 
-    // Pierce climbs gradually through utility pierce path
+    // Determine pierce from UTILITY tree
     let pierce = 0;
     if (this.ownedUpgrades.has("u2b")) pierce = 1;
-    if (this.ownedUpgrades.has("u3b")) pierce = 2;
-    if (this.ownedUpgrades.has("u4b")) pierce = 3;
-    if (this.ownedUpgrades.has("u5b")) pierce = 99;
-    // Bore Through / Rail Gun add bonus damage on pierce hits
-    if (this.ownedUpgrades.has("u6b")) damage += 2;
-    if (this.ownedUpgrades.has("u7b")) {
-      damage += 3;
-      pierce = 99;
-    }
+    if (this.ownedUpgrades.has("u3c")) pierce = 99; // Pierce all
 
-    // Explosive from fire damage path tier 6-7
+    // Determine explosive from FIRE tree
     let explosive = false;
-    if (this.ownedUpgrades.has("f6b") || this.ownedUpgrades.has("f7b"))
-      explosive = true;
+    if (this.ownedUpgrades.has("f3d") || this.ownedUpgrades.has("f4d")) explosive = true;
 
-    const cannonY =
-      this.groundY -
-      CONFIG.CANNON_WHEEL_RADIUS -
-      CONFIG.CANNON_BODY_HEIGHT -
-      CONFIG.CANNON_BARREL_LENGTH;
+    // Burst mode handling
+    const burstCount = this.ownedUpgrades.has("f4b") ? 5 : this.ownedUpgrades.has("f3b") ? 3 : 1;
+
+    // Get cannon muzzle position
+    const cannonY = this.groundY - CONFIG.CANNON_WHEEL_RADIUS - CONFIG.CANNON_BODY_HEIGHT - CONFIG.CANNON_BARREL_LENGTH;
 
     const baseAngle = -Math.PI / 2;
     const startAngle = baseAngle - ((spread / 2) * Math.PI) / 180;
-    const angleStep =
-      bulletCount > 1 ? (spread * Math.PI) / 180 / (bulletCount - 1) : 0;
+    const angleStep = bulletCount > 1 ? (spread * Math.PI) / 180 / (bulletCount - 1) : 0;
 
-    for (let i = 0; i < bulletCount; i++) {
-      const angle = bulletCount === 1 ? baseAngle : startAngle + angleStep * i;
-      const spreadNoise = this.ownedUpgrades.has("f6a")
-        ? (Math.random() - 0.5) * 0.08
-        : 0;
+    for (let burst = 0; burst < burstCount; burst++) {
+      for (let i = 0; i < bulletCount; i++) {
+        const angle = bulletCount === 1 ? baseAngle : startAngle + angleStep * i;
+        // Add slight random spread for Bullet Storm
+        const spreadNoise = this.ownedUpgrades.has("f4a") ? (Math.random() - 0.5) * 0.1 : 0;
 
-      const bullet = this.bulletPool.acquire();
-      bullet.x = this.cannonX;
-      bullet.y = cannonY;
-      bullet.vx = Math.cos(angle + spreadNoise) * CONFIG.BULLET_SPEED;
-      bullet.vy = Math.sin(angle + spreadNoise) * CONFIG.BULLET_SPEED;
-      bullet.damage = damage;
-      bullet.pierceRemaining = pierce;
-      bullet.explosive = explosive;
-      bullet.active = true;
+        const bullet = this.bulletPool.acquire();
+        bullet.x = this.cannonX;
+        bullet.y = cannonY - burst * 5; // Stagger burst bullets slightly
+        bullet.vx = Math.cos(angle + spreadNoise) * CONFIG.BULLET_SPEED;
+        bullet.vy = Math.sin(angle + spreadNoise) * CONFIG.BULLET_SPEED;
+        bullet.damage = damage;
+        bullet.pierceRemaining = pierce;
+        bullet.explosive = explosive;
+        bullet.active = true;
 
-      this.bullets.push(bullet);
+        this.bullets.push(bullet);
+      }
     }
 
     this.audio.playShoot();
@@ -2167,23 +1667,14 @@ class CannonBlasterGame {
   }
 
   updateShieldRecharge(dt: number): void {
-    // Time-based shield recharge (regen path: d2a -> d3a -> d5a)
-    const hasRegen = this.ownedUpgrades.has("d2a");
-    if (this.shieldHits < this.maxShieldHits && hasRegen) {
+    // Time-based shield recharge (Shield Generator path)
+    if (this.shieldHits < this.maxShieldHits && this.ownedUpgrades.has("d2a")) {
       this.shieldRechargeTimer += dt * 1000;
-      let rechargeTime = 12000;
-      if (this.ownedUpgrades.has("d5a")) rechargeTime = 8000;
-      else if (this.ownedUpgrades.has("d3a")) rechargeTime = 10000;
+      const rechargeTime = 10000; // 10 seconds
       if (this.shieldRechargeTimer >= rechargeTime) {
         this.shieldHits = this.maxShieldHits;
         this.shieldRechargeTimer = 0;
-        this.floatingText.add(
-          this.cannonX,
-          this.groundY - 100,
-          "SHIELD RESTORED",
-          "#44ff88",
-          18,
-        );
+        this.floatingText.add(this.cannonX, this.groundY - 100, "SHIELD RESTORED", "#44ff88", 18);
         this.audio.triggerHaptic("success");
       }
     }
@@ -2213,17 +1704,15 @@ class CannonBlasterGame {
     x?: number,
     y?: number,
     vx?: number,
-    vy?: number,
+    vy?: number
   ): void {
-    // Determine size based on upgrades + total destructions (never stops shifting)
+    // Determine size based on progress
     if (!size) {
       const roll = Math.random();
-      const u = this.upgradesEarned;
-      const t = this.totalDestroyed;
-      // Upgrades shift fast, destructions shift slowly but never stop
-      const largeChance = clamp(0.1 + u * 0.06 + t * 0.0006, 0.1, 0.55);
-      const mediumChance = clamp(0.35 + u * 0.02 + t * 0.0002, 0.35, 0.45);
-
+      // Start with mostly small/medium, slowly increase large chance
+      const largeChance = clamp(0.1 + (this.totalDestroyed / 200), 0.1, 0.35);
+      const mediumChance = 0.4;
+      
       if (roll < largeChance) size = "large";
       else if (roll < largeChance + mediumChance) size = "medium";
       else size = "small";
@@ -2232,16 +1721,13 @@ class CannonBlasterGame {
     const config = CONFIG.BOULDER_SIZES[size];
     const boulder = this.boulderPool.acquire();
 
-    // Health scales from upgrades + continuous scaling from total destructions
+    // Calculate dynamic health: starts at 1, slowly increases for large/medium
     let bonusHealth = 0;
-    const u = this.upgradesEarned;
-    const t = this.totalDestroyed;
-    if (size === "large") {
-      bonusHealth = Math.floor(u * 1.5) + Math.floor(t / 30);
-    } else if (size === "medium") {
-      bonusHealth = Math.floor(u * 0.8) + Math.floor(t / 50);
-    } else {
-      bonusHealth = Math.floor(u * 0.4) + Math.floor(t / 70);
+    if (size !== "small") {
+      // Every BOULDER_HEALTH_INCREASE_INTERVAL destructions, health goes up by 1
+      // Cap at 3 as requested
+      bonusHealth = Math.floor(this.totalDestroyed / CONFIG.BOULDER_HEALTH_INCREASE_INTERVAL);
+      bonusHealth = clamp(bonusHealth, 0, 2);
     }
 
     boulder.id = ++this.boulderIdCounter;
@@ -2252,8 +1738,8 @@ class CannonBlasterGame {
       x ?? randomRange(config.radius + 30, this.w - config.radius - 30);
     boulder.y = y ?? -config.radius - 20;
     const diffMult = this.getDifficultyMultiplier();
-    boulder.vx = vx ?? randomRange(-1.0, 1.0) * diffMult;
-    boulder.vy = vy ?? randomRange(1.0, 2.5) * diffMult;
+    boulder.vx = vx ?? randomRange(-0.8, 0.8) * diffMult;
+    boulder.vy = vy ?? randomRange(0.8, 2.0) * diffMult; // Falls faster over time
     boulder.rotation = Math.random() * Math.PI * 2;
     boulder.rotationSpeed = (Math.random() - 0.5) * 0.03;
     boulder.active = true;
@@ -2332,15 +1818,9 @@ class CannonBlasterGame {
             // Split
             this.splitBoulder(boulder);
 
-            // Explosive effect (f7b = bigger explosions)
+            // Explosive effect
             if (bullet.explosive) {
-              const megaBlast = this.ownedUpgrades.has("f7b");
-              this.handleExplosion(
-                boulder.x,
-                boulder.y,
-                megaBlast ? 4 : 2,
-                megaBlast ? 100 : 60,
-              );
+              this.handleExplosion(boulder.x, boulder.y, 2, 60);
             }
 
             this.boulderPool.release(boulder);
@@ -2360,10 +1840,9 @@ class CannonBlasterGame {
     }
 
     // Boulders vs Cannon
-    const cannonCenterY =
-      this.groundY - CONFIG.CANNON_WHEEL_RADIUS - CONFIG.CANNON_BODY_HEIGHT / 2;
+    const cannonCenterY = this.groundY - CONFIG.CANNON_WHEEL_RADIUS - CONFIG.CANNON_BODY_HEIGHT / 2;
     let cannonHitRadius = CONFIG.CANNON_BODY_WIDTH / 2;
-
+    
     // If shield is active, hit detection matches the visual shield size
     if (this.shieldHits > 0 || this.invincibilityTimer > 0) {
       cannonHitRadius = CONFIG.CANNON_BODY_WIDTH * 1.1;
@@ -2388,13 +1867,19 @@ class CannonBlasterGame {
     // Spawn 2 children with a strong "pop" effect (upward and outward)
     for (let i = 0; i < 2; i++) {
       const dir = i === 0 ? -1 : 1;
-
+      
       // Horizontal "outward" velocity
       const vx = dir * randomRange(3, 5);
       // Stronger "upward" velocity
       const vy = randomRange(-5, -8);
 
-      this.spawnBoulder(newSize, boulder.x + dir * 25, boulder.y - 5, vx, vy);
+      this.spawnBoulder(
+        newSize,
+        boulder.x + dir * 25,
+        boulder.y - 5,
+        vx,
+        vy
+      );
     }
   }
 
@@ -2491,13 +1976,7 @@ class CannonBlasterGame {
       const twinkle = 0.7 + Math.sin(now / 1500 + s.x * 10) * 0.3;
       ctx.globalAlpha = s.o * twinkle;
       ctx.beginPath();
-      ctx.arc(
-        (s.x / 1000) * this.w,
-        (s.y / 1000) * this.h * 0.8,
-        s.s,
-        0,
-        Math.PI * 2,
-      );
+      ctx.arc((s.x / 1000) * this.w, (s.y / 1000) * this.h * 0.8, s.s, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -2519,12 +1998,7 @@ class CannonBlasterGame {
     ctx.lineWidth = 2;
     for (let i = this.shootingStars.length - 1; i >= 0; i--) {
       const ss = this.shootingStars[i];
-      const grad = ctx.createLinearGradient(
-        ss.x,
-        ss.y,
-        ss.x - ss.vx * 2,
-        ss.y - ss.vy * 2,
-      );
+      const grad = ctx.createLinearGradient(ss.x, ss.y, ss.x - ss.vx * 2, ss.y - ss.vy * 2);
       grad.addColorStop(0, `rgba(255, 255, 255, ${ss.life})`);
       grad.addColorStop(1, "rgba(255, 255, 255, 0)");
       ctx.strokeStyle = grad;
@@ -2559,7 +2033,7 @@ class CannonBlasterGame {
       const w = (b.w / 1000) * this.w;
       const h = (b.h / 1000) * this.h;
       ctx.fillRect(x, this.groundY - h, w, h);
-
+      
       // Window lights - warm amber
       if (h > 30) {
         ctx.fillStyle = "rgba(255, 200, 100, 0.15)";
@@ -2570,14 +2044,7 @@ class CannonBlasterGame {
     }
 
     // Vignette
-    const vGrad = ctx.createRadialGradient(
-      this.w / 2,
-      this.h / 2,
-      this.w * 0.3,
-      this.w / 2,
-      this.h / 2,
-      this.w * 0.9,
-    );
+    const vGrad = ctx.createRadialGradient(this.w / 2, this.h / 2, this.w * 0.3, this.w / 2, this.h / 2, this.w * 0.9);
     vGrad.addColorStop(0, "rgba(0,0,0,0)");
     vGrad.addColorStop(1, "rgba(5, 10, 20, 0.5)");
     ctx.fillStyle = vGrad;
@@ -2592,7 +2059,7 @@ class CannonBlasterGame {
       0,
       this.groundY,
       0,
-      this.groundY + 50,
+      this.groundY + 50
     );
     gradient.addColorStop(0, "#2a3a30");
     gradient.addColorStop(1, "#1a2520");
@@ -2619,7 +2086,7 @@ class CannonBlasterGame {
     ctx.moveTo(0, this.groundY);
     ctx.lineTo(this.w, this.groundY);
     ctx.stroke();
-
+    
     // Add glow
     ctx.shadowBlur = 15;
     ctx.shadowColor = "#44ff88";
@@ -2633,7 +2100,7 @@ class CannonBlasterGame {
     const wheelR = CONFIG.CANNON_WHEEL_RADIUS;
     const bodyW = CONFIG.CANNON_BODY_WIDTH;
     const bodyH = CONFIG.CANNON_BODY_HEIGHT;
-
+    
     // Calculate positions
     const wheelY = this.groundY - wheelR;
     const bodyY = wheelY - bodyH / 2 - 2;
@@ -2669,10 +2136,7 @@ class CannonBlasterGame {
         const angle = (i / 6) * Math.PI * 2;
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.lineTo(
-          Math.cos(angle) * wheelR * 0.9,
-          Math.sin(angle) * wheelR * 0.9,
-        );
+        ctx.lineTo(Math.cos(angle) * wheelR * 0.9, Math.sin(angle) * wheelR * 0.9);
         ctx.stroke();
       }
 
@@ -2712,12 +2176,7 @@ class CannonBlasterGame {
     ctx.fillStyle = "#444";
     const rivetX = bodyW / 2 - 10;
     const rivetY = bodyH / 2 - 8;
-    [
-      [-rivetX, -rivetY],
-      [rivetX, -rivetY],
-      [-rivetX, rivetY],
-      [rivetX, rivetY],
-    ].forEach(([rx, ry]) => {
+    [[-rivetX, -rivetY], [rivetX, -rivetY], [-rivetX, rivetY], [rivetX, rivetY]].forEach(([rx, ry]) => {
       ctx.beginPath();
       ctx.arc(rx, ry, 2.5, 0, Math.PI * 2);
       ctx.fill();
@@ -2734,16 +2193,14 @@ class CannonBlasterGame {
 
     // Draw barrel (Thick black iron)
     const barrelBaseY = bodyY - bodyH / 2;
-
+    
     ctx.save();
     ctx.translate(this.cannonX, barrelBaseY);
 
     // Barrel body gradient
     const barrelGradient = ctx.createLinearGradient(
-      -CONFIG.CANNON_BARREL_WIDTH / 2,
-      0,
-      CONFIG.CANNON_BARREL_WIDTH / 2,
-      0,
+      -CONFIG.CANNON_BARREL_WIDTH / 2, 0,
+      CONFIG.CANNON_BARREL_WIDTH / 2, 0
     );
     barrelGradient.addColorStop(0, "#0a0a0a");
     barrelGradient.addColorStop(0.4, "#2a2a2a");
@@ -2754,14 +2211,8 @@ class CannonBlasterGame {
     // Barrel shape - slightly tapered for classic cannon look
     ctx.beginPath();
     ctx.moveTo(-CONFIG.CANNON_BARREL_WIDTH / 2, 0);
-    ctx.lineTo(
-      -CONFIG.CANNON_BARREL_WIDTH / 2 - 2,
-      -CONFIG.CANNON_BARREL_LENGTH,
-    );
-    ctx.lineTo(
-      CONFIG.CANNON_BARREL_WIDTH / 2 + 2,
-      -CONFIG.CANNON_BARREL_LENGTH,
-    );
+    ctx.lineTo(-CONFIG.CANNON_BARREL_WIDTH / 2 - 2, -CONFIG.CANNON_BARREL_LENGTH);
+    ctx.lineTo(CONFIG.CANNON_BARREL_WIDTH / 2 + 2, -CONFIG.CANNON_BARREL_LENGTH);
     ctx.lineTo(CONFIG.CANNON_BARREL_WIDTH / 2, 0);
     ctx.closePath();
     ctx.fill();
@@ -2770,13 +2221,8 @@ class CannonBlasterGame {
     ctx.fillStyle = "#333";
     const bandHeight = 4;
     const bandYPositions = [-10, -CONFIG.CANNON_BARREL_LENGTH * 0.6];
-    bandYPositions.forEach((by) => {
-      ctx.fillRect(
-        -CONFIG.CANNON_BARREL_WIDTH / 2 - 2,
-        by,
-        CONFIG.CANNON_BARREL_WIDTH + 4,
-        bandHeight,
-      );
+    bandYPositions.forEach(by => {
+      ctx.fillRect(-CONFIG.CANNON_BARREL_WIDTH / 2 - 2, by, CONFIG.CANNON_BARREL_WIDTH + 4, bandHeight);
     });
 
     // Muzzle flare (The heavy front rim)
@@ -2787,22 +2233,14 @@ class CannonBlasterGame {
       -CONFIG.CANNON_BARREL_LENGTH,
       CONFIG.CANNON_BARREL_WIDTH + 8,
       8,
-      2,
+      2
     );
     ctx.fill();
 
     // Muzzle opening
     ctx.fillStyle = "#000";
     ctx.beginPath();
-    ctx.ellipse(
-      0,
-      -CONFIG.CANNON_BARREL_LENGTH,
-      CONFIG.CANNON_BARREL_WIDTH / 2 + 1,
-      4,
-      0,
-      0,
-      Math.PI * 2,
-    );
+    ctx.ellipse(0, -CONFIG.CANNON_BARREL_LENGTH, CONFIG.CANNON_BARREL_WIDTH / 2 + 1, 4, 0, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -2811,44 +2249,37 @@ class CannonBlasterGame {
     if (this.shieldHits > 0 || this.invincibilityTimer > 0) {
       ctx.save();
       ctx.translate(this.cannonX, bodyY);
-
+      
       const shieldRadius = CONFIG.CANNON_BODY_WIDTH * 1.1; // Increased size to extend further out
       const pulse = Math.sin(Date.now() / 200) * 0.1 + 0.9;
-
+      
       // If invincible (just hit), flicker or show different color
       const isInvinc = this.invincibilityTimer > 0;
       const color = isInvinc ? "rgba(255, 255, 255," : "rgba(68, 255, 136,";
-      const alpha = isInvinc ? pulse * 0.5 : pulse * 0.3;
-
+      const alpha = isInvinc ? (pulse * 0.5) : (pulse * 0.3);
+      
       ctx.beginPath();
       ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
-
-      const grad = ctx.createRadialGradient(
-        0,
-        0,
-        shieldRadius * 0.7,
-        0,
-        0,
-        shieldRadius,
-      );
+      
+      const grad = ctx.createRadialGradient(0, 0, shieldRadius * 0.7, 0, 0, shieldRadius);
       grad.addColorStop(0, color + "0)");
       grad.addColorStop(0.8, color + alpha + ")");
       grad.addColorStop(1, color + "0)");
-
+      
       ctx.strokeStyle = color + (alpha + 0.2) + ")";
       ctx.lineWidth = 2;
       ctx.fillStyle = grad;
-
+      
       ctx.fill();
       ctx.stroke();
-
+      
       // Draw shield charges as small pips
       if (this.maxShieldHits > 0) {
         for (let i = 0; i < this.maxShieldHits; i++) {
           const angle = -Math.PI / 2 + (i - (this.maxShieldHits - 1) / 2) * 0.3;
           const px = Math.cos(angle) * (shieldRadius + 8);
           const py = Math.sin(angle) * (shieldRadius + 8);
-
+          
           ctx.fillStyle = i < this.shieldHits ? "#44ff88" : "#224422";
           ctx.beginPath();
           ctx.arc(px, py, 4, 0, Math.PI * 2);
@@ -2861,7 +2292,7 @@ class CannonBlasterGame {
           }
         }
       }
-
+      
       ctx.restore();
     }
   }
@@ -2874,14 +2305,7 @@ class CannonBlasterGame {
       ctx.translate(bullet.x, bullet.y);
 
       // Glow
-      const glow = ctx.createRadialGradient(
-        0,
-        0,
-        0,
-        0,
-        0,
-        CONFIG.BULLET_RADIUS * 2,
-      );
+      const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, CONFIG.BULLET_RADIUS * 2);
       glow.addColorStop(0, "rgba(255, 213, 79, 0.8)");
       glow.addColorStop(0.5, "rgba(255, 180, 50, 0.3)");
       glow.addColorStop(1, "rgba(255, 150, 0, 0)");
@@ -2922,7 +2346,7 @@ class CannonBlasterGame {
         0,
         0,
         0,
-        config.radius,
+        config.radius
       );
       gradient.addColorStop(0, "#6a5a4a");
       gradient.addColorStop(1, "#3a2a20");
@@ -2957,11 +2381,11 @@ class CannonBlasterGame {
         ctx.beginPath();
         ctx.moveTo(
           Math.cos(angle1) * config.radius * 0.2,
-          Math.sin(angle1) * config.radius * 0.2,
+          Math.sin(angle1) * config.radius * 0.2
         );
         ctx.lineTo(
           Math.cos(angle2) * config.radius * 0.6,
-          Math.sin(angle2) * config.radius * 0.6,
+          Math.sin(angle2) * config.radius * 0.6
         );
         ctx.stroke();
       }
@@ -3075,7 +2499,7 @@ class CannonBlasterGame {
       for (let boi = this.demoBoulders.length - 1; boi >= 0; boi--) {
         const boulder = this.demoBoulders[boi];
         const dist = Math.sqrt(
-          (bullet.x - boulder.x) ** 2 + (bullet.y - boulder.y) ** 2,
+          (bullet.x - boulder.x) ** 2 + (bullet.y - boulder.y) ** 2
         );
         if (dist < boulder.radius + 4) {
           boulder.health--;
@@ -3236,8 +2660,7 @@ class CannonBlasterGame {
 
       // Firing - only when moving
       if (this.isFiring) {
-        const fireInterval =
-          CONFIG.BASE_FIRE_INTERVAL * this.getFireRateMultiplier();
+        const fireInterval = CONFIG.BASE_FIRE_INTERVAL * this.getFireRateMultiplier();
         this.fireTimer -= dt * 1000;
         if (this.fireTimer <= 0) {
           this.fireBullets();
@@ -3249,15 +2672,11 @@ class CannonBlasterGame {
       const difficultyMult = this.getDifficultyMultiplier();
       const spawnInterval = Math.max(
         CONFIG.BOULDER_SPAWN_INTERVAL_MIN,
-        (CONFIG.BOULDER_SPAWN_INTERVAL_START - this.totalDestroyed * 25) /
-          difficultyMult,
+        (CONFIG.BOULDER_SPAWN_INTERVAL_START - this.totalDestroyed * 25) / difficultyMult
       );
       this.spawnTimer -= dt * 1000;
       if (this.spawnTimer <= 0) {
-        const count = this.getSpawnCountForWave();
-        for (let s = 0; s < count; s++) {
-          this.spawnBoulder();
-        }
+        this.spawnBoulder();
         this.spawnTimer = spawnInterval;
       }
 

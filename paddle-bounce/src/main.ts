@@ -1,4 +1,3 @@
-import { oasiz } from "@oasiz/sdk";
 import * as Tone from "tone";
 
 /**
@@ -102,9 +101,7 @@ interface Coin {
 }
 
 interface Settings {
-  music: boolean;
-  fx: boolean;
-  haptics: boolean;
+  sound: boolean;
 }
 
 // ============= UTILITY FUNCTIONS =============
@@ -136,7 +133,9 @@ const pauseScreen = document.getElementById("pauseScreen")!;
 const settingsModal = document.getElementById("settingsModal")!;
 const settingsBtn = document.getElementById("settingsBtn")!;
 const pauseBtn = document.getElementById("pauseBtn")!;
+const startBestScore = document.getElementById("startBestScore")!;
 const finalScore = document.getElementById("finalScore")!;
+const newBestBadge = document.getElementById("newBestBadge")!;
 const paddlePreview = document.getElementById("paddlePreview")!;
 const startButton = document.getElementById("startButton")!;
 
@@ -168,6 +167,7 @@ let centerHitFlash = 0; // Flash effect timer for center hits
 
 // Score
 let score = 0;
+let bestScore = parseInt(localStorage.getItem("paddleBounce_bestScore") || "0");
 let bouncesSinceLastRamp = 0;
 
 // Particles
@@ -179,9 +179,7 @@ let nextCoinSpawnTimer = 0;
 
 // Settings
 let settings: Settings = {
-  music: localStorage.getItem("paddleBounce_music") !== "false",
-  fx: localStorage.getItem("paddleBounce_fx") !== "false",
-  haptics: localStorage.getItem("paddleBounce_haptics") !== "false",
+  sound: localStorage.getItem("paddleBounce_sound") !== "false",
 };
 
 // Input state
@@ -215,14 +213,8 @@ const hitSynth = new Tone.Synth({
   envelope: { attack: 0.001, decay: 0.01, sustain: 0, release: 0.01 },
 }).toDestination();
 
-// Coin collection sound
-const coinSynth = new Tone.PolySynth(Tone.Synth, {
-  oscillator: { type: "triangle" },
-  envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 },
-}).toDestination();
-
 function playHitSound(isCenterHit: boolean): void {
-  if (!settings.fx) return;
+  if (!settings.sound) return;
   if (Tone.getContext().state !== "running") {
     Tone.start();
   }
@@ -234,16 +226,6 @@ function playHitSound(isCenterHit: boolean): void {
     // Slightly lower, slightly softer "tap" for outer zones
     hitSynth.triggerAttackRelease("C6", "64n");
   }
-}
-
-function playCoinSound(): void {
-  if (!settings.fx) return;
-  if (Tone.getContext().state !== "running") {
-    Tone.start();
-  }
-
-  // Sparkling "ding"
-  coinSynth.triggerAttackRelease(["C6", "E6", "G6"], "16n");
 }
 
 // ============= DRAWING FUNCTIONS =============
@@ -266,18 +248,18 @@ function drawBackground(): void {
 function drawScore(): void {
   // Large score in center (watermark style)
   const scoreText = score.toString();
-  const fontSize = Math.min(w * 0.75, 500);
+  const fontSize = Math.min(w * 0.35, 200);
   ctx.font = "700 " + fontSize + "px Fredoka";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillStyle = darkenColor(bgColor, 30);
-  ctx.globalAlpha = 0.25;
-  ctx.fillText(scoreText, w / 2, h * 0.42);
+  ctx.globalAlpha = 0.3;
+  ctx.fillText(scoreText, w / 2, h * 0.38);
 
   // "SCORE" label below
-  const labelSize = Math.min(w * 0.08, 32);
+  const labelSize = Math.min(w * 0.06, 24);
   ctx.font = "600 " + labelSize + "px Fredoka";
-  ctx.fillText("SCORE", w / 2, h * 0.42 + fontSize * 0.4);
+  ctx.fillText("SCORE", w / 2, h * 0.38 + fontSize * 0.45);
   ctx.globalAlpha = 1;
 }
 
@@ -396,26 +378,28 @@ function drawParticles(): void {
 function drawStartScreen(): void {
   // Draw paddle preview SVG
   if (!paddlePreview.innerHTML) {
-    const svgWidth = 160;
-    const svgHeight = 200;
+    const svgWidth = Math.min(w * 0.4, 180);
+    const svgHeight = svgWidth * 1.4;
     paddlePreview.innerHTML =
       '<svg width="' +
       svgWidth +
       '" height="' +
       svgHeight +
       '" viewBox="0 0 100 140">' +
-      '<ellipse cx="50" cy="45" rx="44" ry="36" fill="url(#headGrad)" stroke="#000" stroke-width="6"/>' +
-      '<rect x="40" y="75" width="20" height="50" rx="3" fill="url(#handleGrad)" stroke="#000" stroke-width="5"/>' +
-      '<rect x="36" y="115" width="28" height="15" rx="4" fill="#333" stroke="#000" stroke-width="5"/>' +
+      '<ellipse cx="50" cy="35" rx="42" ry="28" fill="url(#headGrad)" stroke="#000" stroke-width="5"/>' +
+      '<rect x="40" y="55" width="20" height="55" rx="3" fill="url(#handleGrad)" stroke="#000" stroke-width="4"/>' +
+      '<rect x="36" y="100" width="28" height="15" rx="4" fill="#333" stroke="#000" stroke-width="4"/>' +
       "<defs>" +
       '<linearGradient id="headGrad" x1="0%" y1="0%" x2="0%" y2="100%">' +
-      '<stop offset="0%" style="stop-color:#FF5A71"/>' +
-      '<stop offset="100%" style="stop-color:#D43A51"/>' +
+      '<stop offset="0%" style="stop-color:#E85A71"/>' +
+      '<stop offset="50%" style="stop-color:#D64A61"/>' +
+      '<stop offset="100%" style="stop-color:#C43A51"/>' +
       "</linearGradient>" +
       '<linearGradient id="handleGrad" x1="0%" y1="0%" x2="100%" y2="0%">' +
       '<stop offset="0%" style="stop-color:#C9A66B"/>' +
-      '<stop offset="50%" style="stop-color:#F3D6A5"/>' +
-      '<stop offset="100%" style="stop-color:#C9A66B"/>' +
+      '<stop offset="30%" style="stop-color:#DDB87A"/>' +
+      '<stop offset="70%" style="stop-color:#C9A66B"/>' +
+      '<stop offset="100%" style="stop-color:#B89555"/>' +
       "</linearGradient>" +
       "</defs>" +
       "</svg>";
@@ -495,16 +479,8 @@ function spawnCoin(): void {
   if (score < CONFIG.COIN_SCORE_THRESHOLD) return;
 
   const margin = 60;
-  const paddleYPos = h - h * CONFIG.PADDLE_BOTTOM_OFFSET_RATIO;
-
-  // Calculate how high the ball can reasonably reach
-  // Max height = (vy^2) / (2 * g)
-  const maxJumpHeight =
-    Math.pow(CONFIG.BALL_CENTER_HIT_VY * 1.2, 2) / (2 * CONFIG.BALL_GRAVITY);
-  const reachLimitY = Math.max(margin + 50, paddleYPos - maxJumpHeight);
-
   const coinX = margin + Math.random() * (w - margin * 2);
-  const coinY = reachLimitY + Math.random() * (paddleYPos - reachLimitY - 100);
+  const coinY = margin + Math.random() * (h * 0.5); // Spawn in upper half
 
   coins.push({
     x: coinX,
@@ -519,8 +495,6 @@ function spawnCoin(): void {
     "[spawnCoin] Coin spawned at:",
     coinX.toFixed(0),
     coinY.toFixed(0),
-    "Reach limit Y:",
-    reachLimitY.toFixed(0),
   );
 
   // Set next spawn timer
@@ -617,11 +591,9 @@ function collectCoin(coin: Coin): void {
 
   console.log("[collectCoin] Coin collected! New score:", score);
 
-  // Play coin sound
-  playCoinSound();
-
-  if (settings.haptics) {
-    oasiz.triggerHaptic("medium");
+  // Haptics
+  if (typeof (window as any).triggerHaptic === "function") {
+    (window as any).triggerHaptic("medium");
   }
 
   // Visual feedback (particles)
@@ -656,8 +628,9 @@ function handlePaddleHit(): void {
       "zone:",
       lastHitZone,
     );
-    if (settings.haptics) {
-      oasiz.triggerHaptic("success");
+    // Haptic feedback for center hit
+    if (typeof (window as any).triggerHaptic === "function") {
+      (window as any).triggerHaptic("success");
     }
   } else {
     console.log(
@@ -665,8 +638,9 @@ function handlePaddleHit(): void {
       lastHitZone,
       "(no score)",
     );
-    if (settings.haptics) {
-      oasiz.triggerHaptic("medium");
+    // Haptic feedback for non-center hit
+    if (typeof (window as any).triggerHaptic === "function") {
+      (window as any).triggerHaptic("medium");
     }
   }
   bouncesSinceLastRamp++;
@@ -959,14 +933,31 @@ function updatePaddle(dt: number): void {
 function gameOver(): void {
   gameState = "GAME_OVER";
 
-  oasiz.submitScore(score);
-  console.log("[gameOver] Score submitted:", score);
-  if (settings.haptics) {
-    oasiz.triggerHaptic("error");
+  // Submit score
+  if (typeof (window as any).submitScore === "function") {
+    (window as any).submitScore(score);
+    console.log("[gameOver] Score submitted:", score);
+  }
+  // Haptic feedback for game over
+  if (typeof (window as any).triggerHaptic === "function") {
+    (window as any).triggerHaptic("error");
+  }
+
+  // Update best score
+  const isNewBest = score > bestScore;
+  if (isNewBest) {
+    bestScore = score;
+    localStorage.setItem("paddleBounce_bestScore", bestScore.toString());
+    console.log("[gameOver] New best score:", bestScore);
   }
 
   // Update UI
   finalScore.textContent = score.toString();
+  if (isNewBest) {
+    newBestBadge.classList.remove("hidden");
+  } else {
+    newBestBadge.classList.add("hidden");
+  }
 
   // Show game over screen
   startScreen.classList.add("hidden");
@@ -980,13 +971,9 @@ function startGame(): void {
   gameState = "PLAYING";
 
   // Handle background music and Tone.js start
-  if (settings.music || settings.fx) {
+  if (settings.sound) {
     Tone.start();
-  }
-  if (settings.music) {
-    bgMusic
-      .play()
-      .catch((e) => console.log("[startGame] Audio play failed:", e));
+    bgMusic.play().catch((e) => console.log("[startGame] Audio play failed:", e));
   }
 
   resetGame();
@@ -1005,7 +992,7 @@ function pauseGame(): void {
   console.log("[pauseGame] Game paused");
   gameState = "PAUSED";
   pauseScreen.classList.remove("hidden");
-
+  
   // Pause music on pause
   bgMusic.pause();
 }
@@ -1017,10 +1004,8 @@ function resumeGame(): void {
   pauseScreen.classList.add("hidden");
 
   // Resume music on resume
-  if (settings.music) {
-    bgMusic
-      .play()
-      .catch((e) => console.log("[resumeGame] Audio play failed:", e));
+  if (settings.sound) {
+    bgMusic.play().catch((e) => console.log("[resumeGame] Audio play failed:", e));
   }
 }
 
@@ -1029,11 +1014,12 @@ function showStartScreen(): void {
   gameState = "START";
 
   // Handle background music
-  if (settings.music) {
-    bgMusic
-      .play()
-      .catch((e) => console.log("[showStartScreen] Audio play failed:", e));
+  if (settings.sound) {
+    bgMusic.play().catch((e) => console.log("[showStartScreen] Audio play failed:", e));
   }
+
+  // Update best score display
+  startBestScore.textContent = bestScore.toString();
 
   // Reset color to default
   currentColorIndex = 0;
@@ -1111,104 +1097,55 @@ function setupInputHandlers(): void {
     paddleTargetX = paddleX;
   });
 
-  const triggerLightHaptic = () => {
-    if (settings.haptics) {
-      oasiz.triggerHaptic("light");
-    }
-  };
-
   // UI Buttons
   startButton.addEventListener("click", () => {
-    triggerLightHaptic();
     startGame();
   });
 
   settingsBtn.addEventListener("click", () => {
-    triggerLightHaptic();
     settingsModal.classList.remove("hidden");
   });
 
   document.getElementById("settingsClose")!.addEventListener("click", () => {
-    triggerLightHaptic();
     settingsModal.classList.add("hidden");
   });
 
-  pauseBtn.addEventListener("click", () => {
-    triggerLightHaptic();
-    pauseGame();
-  });
-  document.getElementById("resumeButton")!.addEventListener("click", () => {
-    triggerLightHaptic();
-    resumeGame();
-  });
+  pauseBtn.addEventListener("click", pauseGame);
+  document
+    .getElementById("resumeButton")!
+    .addEventListener("click", resumeGame);
   document
     .getElementById("pauseRestartButton")!
     .addEventListener("click", () => {
-      triggerLightHaptic();
       pauseScreen.classList.add("hidden");
       startGame();
     });
-  document.getElementById("pauseMenuButton")!.addEventListener("click", () => {
-    triggerLightHaptic();
-    showStartScreen();
-  });
+  document
+    .getElementById("pauseMenuButton")!
+    .addEventListener("click", showStartScreen);
 
-  document.getElementById("restartButton")!.addEventListener("click", () => {
-    triggerLightHaptic();
-    startGame();
-  });
+  document
+    .getElementById("restartButton")!
+    .addEventListener("click", startGame);
   document
     .getElementById("backToStartButton")!
-    .addEventListener("click", () => {
-      triggerLightHaptic();
-      showStartScreen();
-    });
+    .addEventListener("click", showStartScreen);
 
   // Settings toggles
-  const musicToggle = document.getElementById("musicToggle")!;
-  const fxToggle = document.getElementById("fxToggle")!;
-  const hapticsToggle = document.getElementById("hapticsToggle")!;
+  const soundToggle = document.getElementById("soundToggle")!;
 
-  musicToggle.classList.toggle("active", settings.music);
-  fxToggle.classList.toggle("active", settings.fx);
-  hapticsToggle.classList.toggle("active", settings.haptics);
+  soundToggle.classList.toggle("active", settings.sound);
 
-  musicToggle.addEventListener("click", () => {
-    triggerLightHaptic();
-    settings.music = !settings.music;
-    musicToggle.classList.toggle("active", settings.music);
-    localStorage.setItem("paddleBounce_music", settings.music.toString());
+  soundToggle.addEventListener("click", () => {
+    settings.sound = !settings.sound;
+    soundToggle.classList.toggle("active", settings.sound);
+    localStorage.setItem("paddleBounce_sound", settings.sound.toString());
 
-    if (settings.music) {
-      if (gameState === "PLAYING" || gameState === "START") {
-        bgMusic
-          .play()
-          .catch((e) => console.log("[musicToggle] Audio play failed:", e));
-      }
+    if (settings.sound) {
+      Tone.start();
+      bgMusic.play().catch((e) => console.log("[soundToggle] Audio play failed:", e));
     } else {
       bgMusic.pause();
-    }
-  });
-
-  fxToggle.addEventListener("click", () => {
-    triggerLightHaptic();
-    settings.fx = !settings.fx;
-    fxToggle.classList.toggle("active", settings.fx);
-    localStorage.setItem("paddleBounce_fx", settings.fx.toString());
-
-    if (settings.fx) {
-      Tone.start();
-    }
-  });
-
-  hapticsToggle.addEventListener("click", () => {
-    settings.haptics = !settings.haptics;
-    hapticsToggle.classList.toggle("active", settings.haptics);
-    localStorage.setItem("paddleBounce_haptics", settings.haptics.toString());
-
-    // Trigger haptic after toggling on to show it works
-    if (settings.haptics) {
-      triggerLightHaptic();
     }
   });
 }
@@ -1232,55 +1169,36 @@ function resizeCanvas(): void {
 }
 
 // ============= GAME LOOP =============
-// Fixed timestep for consistent physics across all refresh rates
-const FIXED_TIMESTEP = 1000 / 60; // 60 updates per second (16.667ms)
-const MAX_DELTA = 100; // Cap delta to prevent spiral of death on tab switch
-
 let lastTime = 0;
-let accumulator = 0;
 
 function gameLoop(timestamp: number): void {
-  // Calculate delta time, capping it to prevent huge jumps
-  let dt = timestamp - lastTime;
+  const dt = timestamp - lastTime;
   lastTime = timestamp;
 
-  // Cap delta time to prevent spiral of death (e.g., when tab is backgrounded)
-  if (dt > MAX_DELTA) {
-    dt = MAX_DELTA;
-  }
-
-  // Accumulate time for fixed timestep physics
-  accumulator += dt;
-
-  // Run physics at fixed timestep
-  while (accumulator >= FIXED_TIMESTEP) {
-    if (gameState === "PLAYING") {
-      updatePaddle(FIXED_TIMESTEP);
-      updateBall();
-      updateParticles(FIXED_TIMESTEP);
-      updateCoins(FIXED_TIMESTEP);
-
-      // Decay center hit flash
-      if (centerHitFlash > 0) {
-        centerHitFlash -= FIXED_TIMESTEP;
-        if (centerHitFlash < 0) centerHitFlash = 0;
-      }
-    }
-    accumulator -= FIXED_TIMESTEP;
-  }
-
-  // Clear and draw background (rendering happens every frame for smooth visuals)
+  // Clear and draw background
   drawBackground();
 
   if (gameState === "PLAYING") {
+    updatePaddle(dt);
+    updateBall();
+    updateParticles(dt);
+    updateCoins(dt);
+
+    // Decay center hit flash
+    if (centerHitFlash > 0) {
+      centerHitFlash -= dt;
+      if (centerHitFlash < 0) centerHitFlash = 0;
+    }
+
     drawScore();
     drawPaddle();
     drawCoins();
     drawBall();
     drawParticles();
   } else if (gameState === "START") {
-    // Only clear background and draw title screen
     drawStartScreen();
+    // Draw a static paddle for visual consistency
+    drawPaddle();
   } else if (gameState === "PAUSED" || gameState === "GAME_OVER") {
     // Draw frozen state
     drawScore();
@@ -1297,14 +1215,6 @@ function gameLoop(timestamp: number): void {
 function init(): void {
   console.log("[init] Initializing Paddle Bounce");
 
-  // SDK: lifecycle hooks for background/foreground
-  oasiz.onPause(() => {
-    if (gameState === "PLAYING") {
-      pauseGame();
-    }
-  });
-  oasiz.onResume(() => {});
-
   // Setup canvas
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
@@ -1313,6 +1223,7 @@ function init(): void {
   setupInputHandlers();
 
   // Initialize display
+  startBestScore.textContent = bestScore.toString();
   gameContainer.style.background = bgColor;
 
   // Initialize paddle position
@@ -1326,7 +1237,7 @@ function init(): void {
   // Initialize display state
   showStartScreen();
 
-  console.log("[init] Game initialized.");
+  console.log("[init] Game initialized. Best score:", bestScore);
 }
 
 init();

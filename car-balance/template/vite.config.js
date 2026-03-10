@@ -18,3 +18,4 @@ export default defineConfig({
   // Suppress warnings during build
   logLevel: "warn",
 });
+

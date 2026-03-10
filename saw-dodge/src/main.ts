@@ -6,8 +6,6 @@
  * "Game within a game" aesthetic with handheld console feel.
  */
 
-import { oasiz } from "@oasiz/sdk";
-
 // ============= CONFIGURATION =============
 const CONFIG = {
   // Player
@@ -228,7 +226,6 @@ const startScreen = document.getElementById("startScreen")!;
 const gameOverScreen = document.getElementById("gameOverScreen")!;
 const pauseScreen = document.getElementById("pauseScreen")!;
 const pauseBtn = document.getElementById("pauseBtn")!;
-const settingsBtn = document.getElementById("settingsBtn")!;
 const settingsModal = document.getElementById("settingsModal")!;
 const scoreDisplay = document.getElementById("scoreDisplay")!;
 const roundDisplay = document.getElementById("roundDisplay")!;
@@ -536,9 +533,11 @@ function playUIClick(): void {
 }
 
 // ============= HAPTICS =============
-function triggerHaptic(type: "light" | "medium" | "heavy" | "success" | "error"): void {
+function triggerHaptic(type: string): void {
   if (!settings.haptics) return;
-  oasiz.triggerHaptic(type);
+  if (typeof (window as any).triggerHaptic === "function") {
+    (window as any).triggerHaptic(type);
+  }
 }
 
 // ============= SCREEN EFFECTS =============
@@ -1827,11 +1826,13 @@ function resetGame(): void {
 
 function gameOver(): void {
   gameState = "GAME_OVER";
-  stopLoop();
   console.log("[gameOver] Final score: " + score + ", Coins: " + totalCoins);
 
-  oasiz.submitScore(score);
-  console.log("[gameOver] Score submitted: " + score);
+  // Submit score
+  if (typeof (window as any).submitScore === "function") {
+    (window as any).submitScore(score);
+    console.log("[gameOver] Score submitted: " + score);
+  }
 
   // Death effects
   addScreenShake(CONFIG.SHAKE_DEATH);
@@ -1866,14 +1867,12 @@ function gameOver(): void {
   pauseScreen.classList.add("hidden");
   gameOverScreen.classList.remove("hidden");
   pauseBtn.classList.add("hidden");
-  settingsBtn.classList.add("hidden");
 }
 
 function startGame(): void {
   console.log("[startGame] Starting game");
   gameState = "PLAYING";
   stopFallingSaws();
-  startLoop();
 
   initAudio();
   resetGame();
@@ -1882,7 +1881,6 @@ function startGame(): void {
   gameOverScreen.classList.add("hidden");
   pauseScreen.classList.add("hidden");
   pauseBtn.classList.remove("hidden");
-  settingsBtn.classList.remove("hidden");
 
   playUIClick();
   triggerHaptic("light");
@@ -1893,7 +1891,6 @@ function pauseGame(): void {
   if (gameState !== "PLAYING") return;
   console.log("[pauseGame] Game paused");
   gameState = "PAUSED";
-  stopLoop();
   pauseScreen.classList.remove("hidden");
   triggerHaptic("light");
   pauseBackgroundMusic();
@@ -1904,7 +1901,6 @@ function resumeGame(): void {
   console.log("[resumeGame] Game resumed");
   gameState = "PLAYING";
   pauseScreen.classList.add("hidden");
-  startLoop();
   triggerHaptic("light");
   playBackgroundMusic();
 }
@@ -1912,14 +1908,12 @@ function resumeGame(): void {
 function showStartScreen(): void {
   console.log("[showStartScreen] Showing start screen");
   gameState = "START";
-  stopLoop();
 
   startScreen.classList.remove("hidden");
   gameOverScreen.classList.add("hidden");
   pauseScreen.classList.add("hidden");
   pauseBtn.classList.add("hidden");
-  settingsBtn.classList.add("hidden");
-
+  
   startFallingSaws();
   stopBackgroundMusic();
 }
@@ -2016,18 +2010,6 @@ function setupInputHandlers(): void {
   // UI buttons
   document.getElementById("startButton")!.addEventListener("click", startGame);
   pauseBtn.addEventListener("click", pauseGame);
-  settingsBtn.addEventListener("click", () => {
-    if (gameState === "PLAYING") pauseGame();
-    settingsModal.classList.remove("hidden");
-    playUIClick();
-    triggerHaptic("light");
-  });
-  settingsModal.addEventListener("click", (e) => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.add("hidden");
-      playUIClick();
-    }
-  });
   document.getElementById("resumeButton")!.addEventListener("click", resumeGame);
   document.getElementById("pauseRestartBtn")!.addEventListener("click", () => {
     pauseScreen.classList.add("hidden");
@@ -2073,7 +2055,6 @@ function setupInputHandlers(): void {
 
   document.getElementById("settingsClose")!.addEventListener("click", () => {
     settingsModal.classList.add("hidden");
-    if (gameState === "PAUSED") resumeGame();
     playUIClick();
     triggerHaptic("light");
   });
@@ -2103,20 +2084,6 @@ let lastTime = 0;
 let lastSawSpawn = 0;
 let accumulator = 0;
 const FIXED_DT = 1000 / 60; // Fixed timestep at 60fps (16.67ms)
-let rafId: number | null = null;
-
-function startLoop(): void {
-  if (rafId !== null) return;
-  lastTime = performance.now();
-  rafId = requestAnimationFrame(gameLoop);
-}
-
-function stopLoop(): void {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
-}
 
 function gameLoop(timestamp: number): void {
   const frameTime = Math.min(timestamp - lastTime, 100); // Cap at 100ms to prevent spiral of death
@@ -2190,7 +2157,7 @@ function gameLoop(timestamp: number): void {
   }
 
   ctx.restore();
-  rafId = requestAnimationFrame(gameLoop);
+  requestAnimationFrame(gameLoop);
 }
 
 // ============= START SCREEN FALLING SAWS =============
@@ -2321,20 +2288,6 @@ function stopFallingSaws(): void {
 function init(): void {
   console.log("[init] Initializing Saw Dodge");
 
-  oasiz.onPause(() => {
-    if (gameState === "PLAYING") {
-      pauseGame();
-    } else {
-      pauseBackgroundMusic();
-    }
-  });
-
-  oasiz.onResume(() => {
-    if (gameState === "PAUSED") {
-      playBackgroundMusic();
-    }
-  });
-
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
   setupInputHandlers();
@@ -2342,6 +2295,7 @@ function init(): void {
   player.x = w / 2 - CONFIG.PLAYER_WIDTH / 2;
   player.y = groundY - CONFIG.PLAYER_HEIGHT;
 
+  requestAnimationFrame(gameLoop);
   showStartScreen();
   startFallingSaws();
 

@@ -11,7 +11,6 @@
     "format": "prettier --write 'src/**/*.{ts,tsx,css,html}'"
   },
   "dependencies": {
-    "@oasiz/sdk": "^1.0.1",
     "playroomkit": "^0.0.95",
     "tone": "^14.7.77"
   },
@@ -22,3 +21,5 @@
     "vite-plugin-singlefile": "^2.0.3"
   }
 }
+
+
