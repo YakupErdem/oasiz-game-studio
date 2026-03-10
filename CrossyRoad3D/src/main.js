@@ -1572,7 +1572,137 @@ function spawnOpenGrassDecor(lane) {
   }
 }
 
+function buildProceduralTrainMover(mover, w, h, d, wheelMeshes) {
+  const paint = new THREE.MeshStandardMaterial({
+    color: pickVehicleColor('train'),
+    roughness: 0.28,
+    metalness: 0.26,
+  });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e2228, roughness: 0.86 });
+  const connectorMat = new THREE.MeshStandardMaterial({ color: 0x434951, roughness: 0.78, metalness: 0.14 });
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0xe8edf5, roughness: 0.54, metalness: 0.12 });
+  const carGap = 0.24;
+  const carLen = (w - carGap) * 0.5;
+  const centerOffset = (carLen + carGap) * 0.5;
+  const carCenters = [-centerOffset, centerOffset];
+  const wheelRadius = 0.14;
+  const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.16, 14);
+
+  for (const carCenter of carCenters) {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.98, h * 0.24, d * 0.96), frameMat);
+    base.position.set(carCenter, h * 0.18, 0);
+    base.castShadow = true;
+    base.receiveShadow = true;
+
+    const lowerBody = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.96, h * 0.4, d * 0.94), paint);
+    lowerBody.position.set(carCenter, h * 0.44, 0);
+    lowerBody.castShadow = true;
+    lowerBody.receiveShadow = true;
+
+    const upperBody = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.82, h * 0.28, d * 0.86), paint);
+    upperBody.position.set(carCenter, h * 0.77, 0);
+    upperBody.castShadow = true;
+    upperBody.receiveShadow = true;
+
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.76, h * 0.08, d * 0.72), MAT.carTrim);
+    roof.position.set(carCenter, h * 0.97, 0);
+    roof.castShadow = true;
+
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.92, h * 0.08, d * 0.88), MAT.carTrim);
+    stripe.position.set(carCenter, h * 0.63, 0);
+    stripe.castShadow = true;
+
+    mover.add(base, lowerBody, upperBody, roof, stripe);
+
+    const bogieCenters = [carCenter - carLen * 0.28, carCenter + carLen * 0.28];
+    for (const bogieX of bogieCenters) {
+      const bogie = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.16, h * 0.1, d * 0.74), frameMat);
+      bogie.position.set(bogieX, h * 0.12, 0);
+      bogie.castShadow = true;
+      bogie.receiveShadow = true;
+      mover.add(bogie);
+
+      for (const side of [-1, 1]) {
+        const wheel = new THREE.Mesh(wheelGeo, MAT.carWheel);
+        wheel.rotation.z = Math.PI * 0.5;
+        wheel.position.set(bogieX, 0.16, side * d * 0.33);
+        mover.add(wheel);
+        wheelMeshes.push(wheel);
+      }
+    }
+
+    for (let i = 0; i < 3; i++) {
+      const t = i / 2;
+      const x = THREE.MathUtils.lerp(carCenter - carLen * 0.2, carCenter + carLen * 0.2, t);
+      const windowBox = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.16, h * 0.18, d * 0.72), MAT.carGlass);
+      windowBox.position.set(x, h * 0.82, 0);
+      windowBox.castShadow = true;
+      mover.add(windowBox);
+    }
+  }
+
+  const connectorBase = new THREE.Mesh(new THREE.BoxGeometry(carGap * 1.2, h * 0.1, d * 0.34), frameMat);
+  connectorBase.position.set(0, h * 0.16, 0);
+  connectorBase.castShadow = true;
+  connectorBase.receiveShadow = true;
+
+  const connectorBoot = new THREE.Mesh(new THREE.BoxGeometry(carGap * 0.9, h * 0.32, d * 0.76), connectorMat);
+  connectorBoot.position.set(0, h * 0.58, 0);
+  connectorBoot.castShadow = true;
+  connectorBoot.receiveShadow = true;
+
+  const connectorRoof = new THREE.Mesh(new THREE.BoxGeometry(carGap * 0.82, h * 0.06, d * 0.64), MAT.carTrim);
+  connectorRoof.position.set(0, h * 0.9, 0);
+  connectorRoof.castShadow = true;
+
+  const innerDoorLeft = new THREE.Mesh(new THREE.BoxGeometry(carGap * 0.32, h * 0.34, d * 0.62), doorMat);
+  const innerDoorRight = innerDoorLeft.clone();
+  innerDoorLeft.position.set(-carGap * 0.52, h * 0.58, 0);
+  innerDoorRight.position.set(carGap * 0.52, h * 0.58, 0);
+  innerDoorLeft.castShadow = true;
+  innerDoorRight.castShadow = true;
+  innerDoorLeft.receiveShadow = true;
+  innerDoorRight.receiveShadow = true;
+
+  mover.add(connectorBase, connectorBoot, connectorRoof, innerDoorLeft, innerDoorRight);
+
+  const frontNose = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.18, h * 0.34, d * 0.84), paint);
+  frontNose.position.set(centerOffset + carLen * 0.43, h * 0.66, 0);
+  frontNose.castShadow = true;
+  frontNose.receiveShadow = true;
+
+  const frontCab = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.22, h * 0.2, d * 0.66), MAT.carGlass);
+  frontCab.position.set(centerOffset + carLen * 0.26, h * 0.9, 0);
+  frontCab.castShadow = true;
+
+  const frontSkirt = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.14, h * 0.12, d * 0.7), MAT.carMetal);
+  frontSkirt.position.set(centerOffset + carLen * 0.49, h * 0.34, 0);
+  frontSkirt.castShadow = true;
+  frontSkirt.receiveShadow = true;
+
+  const rearCap = new THREE.Mesh(new THREE.BoxGeometry(carLen * 0.1, h * 0.28, d * 0.84), MAT.carMetal);
+  rearCap.position.set(-(centerOffset + carLen * 0.49), h * 0.6, 0);
+  rearCap.castShadow = true;
+  rearCap.receiveShadow = true;
+
+  const frontLightL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), MAT.carHeadlight);
+  const frontLightR = frontLightL.clone();
+  frontLightL.position.set(centerOffset + carLen * 0.51, h * 0.6, -d * 0.22);
+  frontLightR.position.set(centerOffset + carLen * 0.51, h * 0.6, d * 0.22);
+
+  const rearLightL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), MAT.carTaillight);
+  const rearLightR = rearLightL.clone();
+  rearLightL.position.set(-(centerOffset + carLen * 0.53), h * 0.56, -d * 0.2);
+  rearLightR.position.set(-(centerOffset + carLen * 0.53), h * 0.56, d * 0.2);
+
+  mover.add(frontNose, frontCab, frontSkirt, rearCap, frontLightL, frontLightR, rearLightL, rearLightR);
+
+  return wheelRadius;
+}
+
 function buildProceduralVehicleMover(mover, moverKind, w, h, d, wheelMeshes) {
+  if (moverKind === 'train') return buildProceduralTrainMover(mover, w, h, d, wheelMeshes);
+
   const paintColor = pickVehicleColor(moverKind);
   const paint = new THREE.MeshStandardMaterial({
     color: paintColor,
@@ -1742,7 +1872,7 @@ function spawnMover(lane, subSpeed, subZ, kindOverride) {
     h = 0.52;
     d = laneDepth * 0.18;
   } else if (moverKind === 'train') {
-    w = 6.7 + Math.random() * 2.2;
+    w = 8.4;
     h = 1.24;
     d = laneDepth * 0.46;
   } else if (moverKind === 'barrel') {
@@ -1821,7 +1951,7 @@ function spawnMover(lane, subSpeed, subZ, kindOverride) {
     mesh: mover,
     kind: moverKind,
     isLog,
-    halfX: w * 0.5,
+    halfX: moverKind === 'train' ? 4.3 : w * 0.5,
     halfZ: d * 0.52,
     speed: spd,
     motion: createMoverMotion(moverKind, spd, headingYaw, posZ, wheelMeshes, wheelRadius, mover.position.y),
@@ -1896,7 +2026,7 @@ function animateMover(m, dt) {
 }
 
 function estimateMoverHalfX(kind) {
-  if (kind === 'train') return 4.45;
+  if (kind === 'train') return 4.3;
   if (kind === 'truck') return 2.35;
   if (kind === 'log') return 2.1;
   if (kind === 'bike') return 0.6;

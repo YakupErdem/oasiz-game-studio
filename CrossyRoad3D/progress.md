@@ -257,3 +257,11 @@ Original prompt: oyunu daha çok crossy roada brnzet harita görsellerini
 - Test: `node --check --input-type=module < src/main.js` basarili.
 - Test: `npm run build` basarili.
 - Test: develop-web-game menu screenshot (`output/web-game-all-imported-vehicles-v1/shot-0.png`) acilip incelendi; car/truck trafik yeniden full imported, bus buyuk, error dosyasi olusmadi.
+- Follow-up prompt 33: treni 2 vagon yap birleşik.
+- Uygulama: train procedural mesh'i ayri helper'a tasindi; artik tek uzun blok yerine birbirine bagli 2 vagon (lokomotif + arka vagon) olarak uretiliyor.
+- Uygulama: iki vagon arasina baglanti korugu/tabani ve ic kapilar eklendi; bogie/wheel dizilimi vagon bazli kuruldu, train daha net tek kompozisyon gibi gorunuyor.
+- Uygulama: train spawn uzunlugu sabit 2-vagon oranina cekildi (`w = 8.4`); yeni burun/far cikintilari icin train collision/spawn halfX degeri `4.3` yapildi.
+- Test: `node --check --input-type=module < src/main.js` basarili.
+- Test: `npm run build` basarili.
+- Test: develop-web-game Playwright smoke akisi (`output/web-game-train-2wagon-smoke-v2`) basarili; menu/canvas capture calisti.
+- Test: ozel Playwright proof akisi ile oyuncu ray sonrasi guvenli cimene tasinip aktif train gorunumu yakalandi (`output/web-game-train-2wagon-active-proof-v2/shot-final.png`); state'te `type:"train"` ve `half_x:4.3` dogrulandi.
