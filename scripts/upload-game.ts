@@ -284,25 +284,6 @@ async function collectAssets(gamePath: string): Promise<Record<string, string>> 
 }
 
 /**
- * Check if a build has external assets that need inlining
- */
-function hasExternalAssets(html: string): boolean {
-  // Check for external script/link references
-  return (
-    html.includes('src="./assets/') ||
-    html.includes("src='./assets/") ||
-    html.includes('src="/assets/') ||
-    html.includes("src='/assets/") ||
-    html.includes('href="./assets/') ||
-    html.includes("href='./assets/") ||
-    html.includes('href="/assets/') ||
-    html.includes("href='/assets/") ||
-    html.includes('href="./style.css') ||
-    html.includes('href="/style.css')
-  );
-}
-
-/**
  * Inline all external assets into the HTML
  * This handles JS, CSS, images, audio, and other assets
  */
@@ -449,7 +430,30 @@ async function inlineAssets(gamePath: string, html: string): Promise<string> {
   for (const { fullMatch, replacement } of jsReplacements) {
     result = result.replace(fullMatch, replacement);
   }
-  
+
+  // Step 3b: Process asset URL strings inside inline <script> blocks (e.g. from viteSingleFile)
+  // viteSingleFile bundles all JS into inline <script>...</script> tags, so the external script
+  // regex above never matches. We need to scan inline script content for asset URL strings too.
+  const inlineScriptRegex = /(<script(?:[^>]*)>)([\s\S]*?)(<\/script>)/gi;
+  const inlineReplacements: { fullMatch: string; replacement: string }[] = [];
+  inlineScriptRegex.lastIndex = 0;
+  let inlineMatch;
+  while ((inlineMatch = inlineScriptRegex.exec(result)) !== null) {
+    const [fullMatch, openTag, jsContent, closeTag] = inlineMatch;
+    // Skip external scripts (already handled above) and empty scripts
+    if (!jsContent.trim() || openTag.includes(' src=') || openTag.includes(" src=")) continue;
+    const processed = inlineAssetsInJs(jsContent, fileMap, '');
+    if (processed !== jsContent) {
+      inlineReplacements.push({ fullMatch, replacement: openTag + processed + closeTag });
+    }
+  }
+  for (const { fullMatch, replacement } of inlineReplacements) {
+    result = result.replace(fullMatch, replacement);
+  }
+  if (inlineReplacements.length > 0) {
+    logInfo(`Processed ${inlineReplacements.length} inline script block(s) for asset URLs`);
+  }
+
   // Step 4: Inline remaining asset references in HTML (images, etc.)
   // Match src="./assets/..." or src="/assets/..."
   const assetSrcRegex = /(src=["'])(\.?\/?)assets\/([^"']+)(["'])/gi;
@@ -605,9 +609,12 @@ async function readBundleHtml(gamePath: string, useInlining: boolean = false): P
 
   let html = await Bun.file(distPath).text();
   
-  // Only inline if explicitly requested (legacy mode)
-  if (useInlining && hasExternalAssets(html)) {
-    logInfo("Detected multi-file build, inlining assets...");
+  // Inline assets when explicitly requested.
+  // Note: viteSingleFile builds have no external <script src="..."> tags so hasExternalAssets()
+  // returns false, but asset URL strings still exist inside inline <script> blocks.
+  // We run inlineAssets unconditionally when --inline is set.
+  if (useInlining) {
+    logInfo("Inlining assets into HTML...");
     html = await inlineAssets(gamePath, html);
     logSuccess("All assets inlined into HTML");
   }
